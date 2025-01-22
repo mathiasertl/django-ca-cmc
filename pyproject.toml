@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "django-ca>=2.1.1",
+    "django-stubs>=5.1.2",
     "python-cmc>=1.22",
 ]
 
@@ -13,4 +14,36 @@ dependencies = [
 dev = [
     "mypy>=1.14.1",
     "ruff>=0.9.2",
+]
+
+[tool.django-stubs]
+django_settings_module = "demo.settings"
+
+[tool.mypy]
+strict = true
+show_error_codes = true
+mypy_path = "django_ca_cmc:demo"
+plugins = ["mypy_django_plugin.main"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+extend-select = [
+    "B",  # flake8-bugbear
+    "D",  # pydocstyle
+    "E",  # pycodestyle
+    "F",  # pyflakes
+    "I",  # isort
+    "G",  # flake8-logging-format
+    "DJ",  # flake8-django
+    "PL",  # pylint
+    "PT",  # flake8-pytest-style
+    "UP",  # pyupgrade
+    "RUF",  # ruff specific checks
+]
+
+ignore = [
+    "D203",
+    "D212",
 ]
