@@ -8,6 +8,12 @@ INSTALLED_APPS = [
     "django_ca",
     "django_ca_cmc",
 ]
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": ":memory:",
+    },
+}
 
 CMC_REQUEST_CERTS = [
     """-----BEGIN CERTIFICATE-----
@@ -20,3 +26,10 @@ k9ko+ojFQ3XWJ0zTaKGQcfglrTU/AiEAjJs3LuO1F6GxDjgpLVVp+u750rVCwsUJ
 zIqw8k4ytIY=
 -----END CERTIFICATE-----"""
 ]
+
+CA_MIN_KEY_SIZE = 1024
+CA_KEY_BACKENDS = {
+    "default": {
+        "BACKEND": "django_ca.key_backends.db.DBBackend",
+    },
+}

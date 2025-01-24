@@ -20,5 +20,6 @@ Including another URLconf
 from django.urls import include, path
 
 urlpatterns = [
+    path("django_ca/", include("django_ca.urls")),
     path("", include("django_ca_cmc.urls")),
 ]

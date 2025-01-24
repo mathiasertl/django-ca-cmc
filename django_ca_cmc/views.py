@@ -5,9 +5,11 @@ import logging
 import asn1crypto.cms
 import asn1crypto.x509
 from cryptography.exceptions import InvalidSignature
+from django.conf import settings
 from django.core.exceptions import BadRequest, PermissionDenied
 from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest, HttpResponseForbidden
 from django.views import View
+from django_ca.models import CertificateAuthority
 from python_cmc import cmc
 
 from django_ca_cmc.cmc import (
@@ -24,7 +26,7 @@ CONTENT_TYPE = "application/pkcs7-mime"
 class CMCView(View):
     """View handling CMC requests."""
 
-    def handle_request(self, data: bytes) -> bytes:
+    def handle_request(self, certificate_authority: CertificateAuthority, data: bytes) -> bytes:
         """Handle and extract CMS CMC request."""
         created_certs: dict[int, asn1crypto.x509.Certificate] = {}
 
@@ -68,13 +70,18 @@ class CMCView(View):
 
         return ret
 
-    def post(self, request: HttpRequest) -> HttpResponse:  # noqa: D102
+    def post(self, request: HttpRequest, serial: str | None) -> HttpResponse:  # noqa: D102
         content_type = request.headers.get("Content-type")
         if content_type is None or content_type != CONTENT_TYPE:
             return HttpResponseBadRequest("invalid content type", content_type=CONTENT_TYPE)
 
+        if serial is None:
+            serial = settings.CMC_DEFAULT_CA
+
+        certificate_authority = CertificateAuthority.objects.usable().get(serial=serial)
+
         try:
-            data_content = self.handle_request(request.body)
+            data_content = self.handle_request(certificate_authority, request.body)
         except InvalidSignature:
             return HttpResponseForbidden("invalid signature", content_type=CONTENT_TYPE)
         except (ValueError, TypeError):
