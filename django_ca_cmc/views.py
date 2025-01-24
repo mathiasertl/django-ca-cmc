@@ -71,13 +71,13 @@ class CMCView(View):
     def post(self, request: HttpRequest) -> HttpResponse:  # noqa: D102
         content_type = request.headers.get("Content-type")
         if content_type is None or content_type != CONTENT_TYPE:
-            return HttpResponseBadRequest(b"0", content_type=CONTENT_TYPE)
+            return HttpResponseBadRequest("invalid content type", content_type=CONTENT_TYPE)
 
         try:
             data_content = self.handle_request(request.body)
-        except InvalidSignature as ex:
-            return HttpResponseForbidden(str(ex), content_type=CONTENT_TYPE)
+        except InvalidSignature:
+            return HttpResponseForbidden("invalid signature", content_type=CONTENT_TYPE)
         except (ValueError, TypeError):
-            return HttpResponseBadRequest("0", content_type=CONTENT_TYPE)
+            return HttpResponseBadRequest("internal error", content_type=CONTENT_TYPE)
 
         return HttpResponse(data_content, content_type=CONTENT_TYPE)
