@@ -182,11 +182,8 @@ def check_request_signature(
 
     for request_signer in request_signers:
         for client in clients:
-            valid_cert_pem = asn1crypto.x509.Certificate.load(client.certificate.der)
-            if (
-                request_signer.chosen.native
-                == asn1crypto.x509.Certificate.load(valid_cert_pem).native
-            ):
+            cert = asn1crypto.x509.Certificate.load(client.certificate.der)
+            if request_signer.chosen.native == cert.native:
                 for signer_info in signer_infos:
                     signer_cert: bytes = asn1crypto.pem.armor(
                         "CERTIFICATE", request_signer.chosen.dump()

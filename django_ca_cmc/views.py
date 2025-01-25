@@ -37,7 +37,7 @@ class CMCView(View):
         # Ensure valid signature for the request
         if len(content["signer_infos"]) == 0 or len(content["certificates"]) == 0:
             raise PermissionDenied("Invalid signature or certificate for the signature")
-        check_request_signature(ca, content["certificates"], content["signer_infos"])
+        check_request_signature(content["certificates"], content["signer_infos"])
 
         raw_cmc_request = content["encap_content_info"]["content"].parsed.dump()
         cmc_req = cmc.PKIData.load(raw_cmc_request)
@@ -80,7 +80,8 @@ class CMCView(View):
             data_content = self.handle_request(certificate_authority, request.body)
         except InvalidSignature:
             return HttpResponseForbidden("invalid signature", content_type=CONTENT_TYPE)
-        except (ValueError, TypeError):
+        except Exception as ex:
+            log.exception("Internal error: %s", ex)
             return HttpResponseBadRequest("internal error", content_type=CONTENT_TYPE)
 
         return HttpResponse(data_content, content_type=CONTENT_TYPE)
