@@ -4,6 +4,7 @@ import logging
 
 import asn1crypto.cms
 import asn1crypto.x509
+from cryptography import x509
 from cryptography.exceptions import InvalidSignature
 from django.conf import settings
 from django.core.exceptions import BadRequest, PermissionDenied
@@ -43,26 +44,35 @@ class CMCView(View):
         cmc_req = cmc.PKIData.load(raw_cmc_request)
         _ = cmc_req.native  # Ensure valid data
 
+        cmc_requests = [req.chosen for req in cmc_req["reqSequence"]]
+
+        # Make sure that all sub-requests are supported
+        if unsupported := [
+            _
+            for _ in cmc_requests
+            if not isinstance(_, cmc.CertReqMsg | cmc.TaggedCertificationRequest)
+        ]:
+            log.error("CMC requests of unknown type: %s", unsupported)
+            raise BadRequest("CMC requests of unknown type.")
+
         try:
-            for value in cmc_req["reqSequence"]:
-                if isinstance(value.chosen, cmc.CertReqMsg):  # CRMF
-                    req_id = int(value.chosen["certReq"]["certReqId"].native)
-                    crmf_csr = create_csr_from_crmf(value.chosen["certReq"]["certTemplate"])
-                    created_certs[req_id] = create_cert_from_csr(crmf_csr)
+            for value in cmc_requests:
+                if isinstance(value, cmc.CertReqMsg):  # CRMF
+                    req_id = int(value["certReq"]["certReqId"].native)
+                    csr = create_csr_from_crmf(value["certReq"]["certTemplate"])
+                    created_certs[req_id] = create_cert_from_csr(ca, csr)
 
-                elif isinstance(value.chosen, cmc.TaggedCertificationRequest):  # CSR
-                    req_id = int(value.chosen["bodyPartID"].native)
-                    created_certs[req_id] = create_cert_from_csr(
-                        value.chosen["certificationRequest"]
-                    )
+                elif isinstance(value, cmc.TaggedCertificationRequest):  # CSR
+                    req_id = int(value["bodyPartID"].native)
+                    csr = x509.load_der_x509_csr(value["certificationRequest"].dump())
+                else:  # pragma: no cover  # must not happen, types asserted outside of loop
+                    raise ValueError("Unsupported message type")
 
-                else:
-                    log.error("CMC request type of unknown type: %s", value.chosen)
-                    raise BadRequest("CMC request of unknown type.")
+                created_certs[req_id] = create_cert_from_csr(ca, csr)
 
-            ret = create_cmc_response(cmc_req["controlSequence"], created_certs, failed=False)
+            ret = create_cmc_response(ca, cmc_req["controlSequence"], created_certs, failed=False)
         except (ValueError, TypeError):
-            ret = create_cmc_response(cmc_req["controlSequence"], created_certs, failed=True)
+            ret = create_cmc_response(ca, cmc_req["controlSequence"], created_certs, failed=True)
 
         return ret
 
