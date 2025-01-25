@@ -31,7 +31,7 @@ class CMCClient(models.Model):
 
         This function will also populate the ``serial, `not_after` and `not_before` fields.
         """
-        self.pub = LazyCertificate(value)
+        self.certificate = LazyCertificate(value)
         self.not_after = value.not_valid_after_utc
         self.not_before = value.not_valid_before_utc
 
