@@ -26,24 +26,20 @@ CONTENT_TYPE = "application/pkcs7-mime"
 class CMCView(View):
     """View handling CMC requests."""
 
-    def handle_request(self, certificate_authority: CertificateAuthority, data: bytes) -> bytes:
+    def handle_request(self, ca: CertificateAuthority, data: bytes) -> bytes:
         """Handle and extract CMS CMC request."""
         created_certs: dict[int, asn1crypto.x509.Certificate] = {}
 
         content_info = asn1crypto.cms.ContentInfo.load(data)
         _ = content_info.native  # Ensure valid data
+        content = content_info["content"]
 
         # Ensure valid signature for the request
-        if (
-            len(content_info["content"]["signer_infos"]) == 0
-            or len(content_info["content"]["certificates"]) == 0
-        ):
+        if len(content["signer_infos"]) == 0 or len(content["certificates"]) == 0:
             raise PermissionDenied("Invalid signature or certificate for the signature")
-        check_request_signature(
-            content_info["content"]["certificates"], content_info["content"]["signer_infos"]
-        )
+        check_request_signature(ca, content["certificates"], content["signer_infos"])
 
-        raw_cmc_request = content_info["content"]["encap_content_info"]["content"].parsed.dump()
+        raw_cmc_request = content["encap_content_info"]["content"].parsed.dump()
         cmc_req = cmc.PKIData.load(raw_cmc_request)
         _ = cmc_req.native  # Ensure valid data
 

@@ -11,7 +11,8 @@ from tests.utils import load_file
 
 
 @pytest.mark.parametrize("filename", ["cmc_with_crmf", "cmc_with_csr"])
-def test_with_pre_created_requests(client: Client, ca: CertificateAuthority, filename: str) -> None:
+@pytest.mark.usefixtures("pre_created_client")
+def test_pre_created_requests(client: Client, ca: CertificateAuthority, filename: str) -> None:
     """Test valid, pre-created request payloads."""
     decoded = load_file(filename)
     url_path = reverse("django_ca_cmc:cmc", kwargs={"serial": ca.serial})
@@ -19,7 +20,8 @@ def test_with_pre_created_requests(client: Client, ca: CertificateAuthority, fil
     assert response.status_code == HTTPStatus.OK, response.content
 
 
-def test_with_pre_created_requests_with_invalid_signature(
+@pytest.mark.usefixtures("pre_created_client")
+def test_pre_created_request_with_invalid_signature(
     client: Client, ca: CertificateAuthority
 ) -> None:
     """Test pre-created request with an invalid signature."""
@@ -30,7 +32,7 @@ def test_with_pre_created_requests_with_invalid_signature(
     assert response.content == b"invalid signature"
 
 
-def test_with_invalid_content_type(client: Client, ca: CertificateAuthority) -> None:
+def test_invalid_content_type(client: Client, ca: CertificateAuthority) -> None:
     """Test sending an invalid content type."""
     url_path = reverse("django_ca_cmc:cmc", kwargs={"serial": ca.serial})
     response = client.post(url_path, data=b"", content_type="text/plain")

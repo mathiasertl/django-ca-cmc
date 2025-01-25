@@ -14,7 +14,10 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec, ed448, ed25519, padding, rsa
 from cryptography.hazmat.primitives.serialization import load_der_public_key
 from django.conf import settings
+from django_ca.models import CertificateAuthority
 from python_cmc import cmc
+
+from django_ca_cmc.models import CMCClient
 
 ASN1_INTEGER_CODE = 2
 ASN1_INIT = 48
@@ -171,9 +174,15 @@ def pem_cert_verify_signature(pem: str, signature: bytes, signed_data: bytes) ->
 def check_request_signature(
     request_signers: cms.CertificateSet, signer_infos: cms.SignerInfos
 ) -> None:
+    now = datetime.now(tz=UTC)
+    if settings.USE_TZ is False:
+        now = now.replace(tzinfo=None)
+
+    clients = CMCClient.objects.filter(not_before__lt=now, not_after__gt=now)
+
     for request_signer in request_signers:
-        for valid_cert in settings.CMC_REQUEST_CERTS:
-            _, _, valid_cert_pem = asn1crypto.pem.unarmor(valid_cert.encode("UTF-8"))
+        for client in clients:
+            valid_cert_pem = asn1crypto.x509.Certificate.load(client.certificate.der)
             if (
                 request_signer.chosen.native
                 == asn1crypto.x509.Certificate.load(valid_cert_pem).native
