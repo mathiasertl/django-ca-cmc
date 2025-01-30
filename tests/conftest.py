@@ -163,14 +163,14 @@ def ed25519_ca(
 for _curve in ELLIPTIC_CURVES:
     globals()[f"ec_private_key_{_curve.name}"] = generate_ec_private_key_fixture(_curve)
     globals()[f"ec_certificate_{_curve.name}"] = generate_ec_certificate_fixture(_curve)
-    globals()[f"ec_{_curve.name}"] = generate_ca_fixture(
-        f"ec_{_curve.name}_ca", f"ec_private_key_{_curve.name}", f"ec_certificate_{_curve.name}"
+    globals()[f"ec_{_curve.name}_ca"] = generate_ca_fixture(
+        f"ec_{_curve.name}", f"ec_private_key_{_curve.name}", f"ec_certificate_{_curve.name}"
     )
 for _key_size in RSA_KEY_SIZES:
     globals()[f"rsa_private_key_{_key_size}"] = generate_rsa_private_key_fixture(_key_size)
     globals()[f"rsa_certificate_{_key_size}"] = generate_rsa_certificate_fixture(_key_size)
-    globals()[f"rsa_{_key_size}"] = generate_ca_fixture(
-        f"rsa_{_key_size}_ca", f"rsa_private_key_{_key_size}", f"rsa_certificate_{_key_size}"
+    globals()[f"rsa_{_key_size}_ca"] = generate_ca_fixture(
+        f"rsa_{_key_size}", f"rsa_private_key_{_key_size}", f"rsa_certificate_{_key_size}"
     )
 
 

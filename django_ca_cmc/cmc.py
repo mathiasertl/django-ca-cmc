@@ -77,19 +77,19 @@ def _public_key_verify_ecdsa_signature(
         try:
             pub_key.verify(signature, signed_data, ec.ECDSA(hashes.SHA256()))
         except InvalidSignature:
-            converted_signature = convert_rs_ec_signature(signature, "secp256r1")
+            converted_signature = convert_rs_ec_signature(signature, ec.SECP256R1())
             pub_key.verify(converted_signature, signed_data, ec.ECDSA(hashes.SHA256()))
     elif pub_key.curve.name == "secp384r1":
         try:
             pub_key.verify(signature, signed_data, ec.ECDSA(hashes.SHA384()))
         except InvalidSignature:
-            converted_signature = convert_rs_ec_signature(signature, "secp384r1")
+            converted_signature = convert_rs_ec_signature(signature, ec.SECP384R1())
             pub_key.verify(converted_signature, signed_data, ec.ECDSA(hashes.SHA384()))
     elif pub_key.curve.name == "secp521r1":
         try:
             pub_key.verify(signature, signed_data, ec.ECDSA(hashes.SHA512()))
         except InvalidSignature:
-            converted_signature = convert_rs_ec_signature(signature, "secp521r1")
+            converted_signature = convert_rs_ec_signature(signature, ec.SECP521R1())
             pub_key.verify(converted_signature, signed_data, ec.ECDSA(hashes.SHA512()))
     else:
         raise ValueError("Unsupported EC curve")
@@ -312,11 +312,10 @@ def create_cmc_response_packet(
     nonce: bytes | None = None
     reg_info: bytes | None = None
 
-    for _, control_value in enumerate(controls):
+    for control_value in controls:
         if control_value["attrType"].native == "id-cmc-senderNonce":
             nonce = control_value["attrValues"].dump()
 
-    for _, control_value in enumerate(controls):
         if control_value["attrType"].native == "id-cmc-regInfo":
             reg_info = control_value["attrValues"].dump()
 
@@ -471,13 +470,13 @@ def create_cmc_response(  # pylint: disable-msg=too-many-locals
     signer_info["signature_algorithm"] = signed_digest_algorithm
 
     # Sign the data
-    raw_signature = ca.sign_data(signer_info["signed_attrs"].retag(17).dump())
+    raw_data = signer_info["signed_attrs"].retag(17).dump()
+    raw_signature = ca.sign_data(raw_data)
     ca_public_key = ca.pub.loaded.public_key()
     if isinstance(ca_public_key, ec.EllipticCurvePublicKey):
         signer_info["signature"] = convert_rs_ec_signature(raw_signature, ca_public_key.curve)
-        print("### added signature", signer_info["signature"])
     else:
-        print("### unsupported key type")
+        raise ValueError(f"{ca.key_type}: Key type is not yet supported.")
 
     signed_data["signer_infos"] = asn1crypto.cms.SignerInfos({signer_info})
     signed_data["certificates"] = asn1crypto.cms.CertificateSet(chain)
