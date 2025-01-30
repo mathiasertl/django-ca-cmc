@@ -1,7 +1,8 @@
+"""CMC-related functions."""
+
 import hashlib
 import secrets
-from datetime import UTC, datetime, timezone
-from typing import Union
+from datetime import UTC, datetime
 
 import asn1crypto.algos
 import asn1crypto.keys
@@ -25,26 +26,13 @@ ASN1_INIT = 48
 ASN1_SECP521R1_CODE = 129
 
 
-def convert_rs_ec_signature(signature: bytes, key_type: str) -> bytes:
+def convert_rs_ec_signature(signature: bytes, elliptic_curve: ec.EllipticCurve) -> bytes:
     """
     Convert an R&S ECDSA signature into the default ASN1 format.
 
     https://stackoverflow.com/questions/66101825/asn-1-structure-of-ecdsa-signature-in-x-509-certificate
-
-    Parameters
-    ----------
-    signature (bytes): The signature.
-    key_type (str): Key type.
-
-    Returns
-    -------
-    bytes
-
     """
-    if key_type not in ["secp256r1", "secp384r1", "secp521r1"]:
-        raise ValueError(f"key_type must be in {['secp256r1', 'secp384r1', 'secp521r1']}")
-
-    if key_type in ["secp521r1"]:
+    if isinstance(elliptic_curve, ec.SECP521R1):
         asn1_init = [ASN1_INIT, ASN1_SECP521R1_CODE]
     else:
         asn1_init = [ASN1_INIT]
@@ -65,10 +53,10 @@ def convert_rs_ec_signature(signature: bytes, key_type: str) -> bytes:
         s_length -= 1
 
     # Ensure the integers are positive numbers
-    if r_data[0] >= 128:
+    if r_data[0] >= 128:  # noqa: PLR2004  # the meaning of this is unknown at the moment.
         r_data = bytearray([0]) + r_data[:]
         r_length += 1
-    if s_data[0] >= 128:
+    if s_data[0] >= 128:  # noqa: PLR2004  # the meaning of this is unknown at the moment.
         s_data = bytearray([0]) + s_data[:]
         s_length += 1
 
@@ -111,16 +99,12 @@ def public_key_verify_signature(  # pylint: disable=too-many-branches
     public_key_info_pem: str, signature: bytes, signed_data: bytes
 ) -> None:
     """
-    Verify signature with a public key
+    Verify signature with a public key.
+
     raises cryptography.exceptions.InvalidSignature
     if invalid signature or ValueError if the public key is not supported.
 
     Potentially fails if the signature is made using nonstandard hashing of the data.
-
-    Parameters
-    ----------
-    public_key_info_pem (str): Public key in info in PEM form
-
     """
     data = public_key_info_pem.encode("utf-8")
     if asn1crypto.pem.detect(data):
@@ -139,7 +123,7 @@ def public_key_verify_signature(  # pylint: disable=too-many-branches
     elif isinstance(pub_key, ec.EllipticCurvePublicKey):
         _public_key_verify_ecdsa_signature(pub_key, signature, signed_data)
 
-    elif isinstance(pub_key, (ed25519.Ed25519PublicKey, ed448.Ed448PublicKey)):
+    elif isinstance(pub_key, (ed25519.Ed25519PublicKey | ed448.Ed448PublicKey)):
         pub_key.verify(signature, signed_data)
 
     else:
@@ -148,18 +132,12 @@ def public_key_verify_signature(  # pylint: disable=too-many-branches
 
 def pem_cert_verify_signature(pem: str, signature: bytes, signed_data: bytes) -> None:
     """
-    Verify signature done by the certificates private key
+    Verify that signature done by the certificates private key.
+
     raises cryptography.exceptions.InvalidSignature
     if invalid signature or ValueError if the public key is not supported.
 
     Potentially fails if the signature is made using nonstandard hashing of the data.
-
-    Parameters
-    ----------
-    pem (str): PEM input data.
-    signature (bytes): The signature.
-    signed_data (bytes): The signed data.
-
     """
     data = pem.encode("utf-8")
     if asn1crypto.pem.detect(data):
@@ -175,6 +153,7 @@ def pem_cert_verify_signature(pem: str, signature: bytes, signed_data: bytes) ->
 def check_request_signature(
     request_signers: cms.CertificateSet, signer_infos: cms.SignerInfos
 ) -> None:
+    """Check a CMC request signature."""
     now = datetime.now(tz=UTC)
     if settings.USE_TZ is False:
         now = now.replace(tzinfo=None)
@@ -206,10 +185,7 @@ def check_request_signature(
 def create_csr_from_crmf(
     certificate_request_message: cmc.CertReqMsg,
 ) -> x509.CertificateSigningRequest:
-    """
-    Manually handle the CRMF request into a CSR
-    since we use CSR as data type in the database and currently all certs have a csr which the are created from
-    """
+    """Manually handle the CRMF request into a CSR."""
     attrs = asn1crypto.csr.CRIAttributes()
 
     cert_req_info = asn1crypto.csr.CertificationRequestInfo()
@@ -243,20 +219,22 @@ def create_csr_from_crmf(
 def create_cert_from_csr(
     ca: CertificateAuthority, csr: x509.CertificateSigningRequest
 ) -> Certificate:
-    """Create cert from a csr"""
+    """Create cert from a csr."""
     key_backend_options = ca.key_backend.get_use_private_key_options(ca, {})
     return Certificate.objects.create_cert(ca, key_backend_options, csr, subject=csr.subject)
 
 
 def cmc_revoke(revoke_data: bytes) -> None:
-    """Revoke a certificate based on the CMC RevokeRequest"""
+    """Revoke a certificate based on the CMC RevokeRequest."""
     # set_of_revoke_request = cmc.SetOfRevokeRequest.load(revoke_data)
     # revoked_certs = 0
     #
     # for revoke_request in set_of_revoke_request:
     #     # Try certs
     #     db_certificate_objs = await db_load_data_class(
-    #         Certificate, CertificateInput(serial_number=str(revoke_request["serial_number"].native))
+    #         Certificate, CertificateInput(
+    #           serial_number=str(revoke_request["serial_number"].native)
+    #         )
     #     )
     #     for obj in db_certificate_objs:
     #         if isinstance(obj, Certificate):
@@ -327,6 +305,7 @@ def create_cmc_response_packet(
 ) -> cmc.PKIResponse:
     """
     Create a CMC response package.
+
     Revoke cert(s) if the request had a RevokeRequest(s).
     """
     response_controls = cmc.Controls()
@@ -390,7 +369,7 @@ def create_cmc_response(  # pylint: disable-msg=too-many-locals
     created_certs: dict[int, Certificate],
     failed: bool,
 ) -> bytes:
-    """Create a CMS response containing a CMC package"""
+    """Create a CMS response containing a CMC package."""
     # Add CA bundle and created certificates to the chain.
     chain: list[asn1crypto.x509.Certificate] = [
         asn1crypto.x509.Certificate.load(ca_in_bundle.pub.der) for ca_in_bundle in ca.bundle
@@ -490,9 +469,11 @@ def create_cmc_response(  # pylint: disable-msg=too-many-locals
         {"algorithm": asn1crypto.algos.DigestAlgorithmId("2.16.840.1.101.3.4.2.1")}
     )
     signer_info["signature_algorithm"] = signed_digest_algorithm
-    signer_info["signature"] = PKCS11Session().sign(
-        CMC_SIGNING_KEY_LABEL, signer_info["signed_attrs"].retag(17).dump(), key_type=CMC_KEYS_TYPE
-    )
+
+    # Sign the data
+    raw_signature = ca.sign_data(signer_info["signed_attrs"].retag(17).dump())
+    if ca.key_type == "EC":
+        signer_info["signature"] = convert_rs_ec_signature(raw_signature)
 
     signed_data["signer_infos"] = asn1crypto.cms.SignerInfos({signer_info})
     signed_data["certificates"] = asn1crypto.cms.CertificateSet(chain)

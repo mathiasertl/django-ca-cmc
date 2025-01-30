@@ -6,7 +6,9 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec, ed448, ed25519, rsa
 
 
-def _ec_signed_digest_algorithm(curve: ec.EllipticCurve) -> asn1crypto.algos.SignedDigestAlgorithm:
+def _get_ec_signed_digest_algorithm(
+    curve: ec.EllipticCurve,
+) -> asn1crypto.algos.SignedDigestAlgorithm:
     # Helper function to get the digest algorithm for EC keys.
     if isinstance(curve, ec.SECP256R1):
         return asn1crypto.algos.SignedDigestAlgorithmId("sha256_ecdsa")
@@ -32,7 +34,7 @@ def get_signed_digest_algorithm(
     elif isinstance(public_key, ed448.Ed448PublicKey):
         algo["algorithm"] = asn1crypto.algos.SignedDigestAlgorithmId("ed448")
     elif isinstance(public_key, ec.EllipticCurvePublicKey):
-        algo["algorithm"] = _ec_signed_digest_algorithm(public_key.curve)
+        algo["algorithm"] = _get_ec_signed_digest_algorithm(public_key.curve)
     elif isinstance(public_key, rsa.RSAPublicKey):
         if isinstance(certificate.signature_hash_algorithm, hashes.SHA224):
             algo["algorithm"] = asn1crypto.algos.SignedDigestAlgorithmId("sha224_rsa")
