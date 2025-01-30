@@ -472,8 +472,12 @@ def create_cmc_response(  # pylint: disable-msg=too-many-locals
 
     # Sign the data
     raw_signature = ca.sign_data(signer_info["signed_attrs"].retag(17).dump())
-    if ca.key_type == "EC":
-        signer_info["signature"] = convert_rs_ec_signature(raw_signature)
+    ca_public_key = ca.pub.loaded.public_key()
+    if isinstance(ca_public_key, ec.EllipticCurvePublicKey):
+        signer_info["signature"] = convert_rs_ec_signature(raw_signature, ca_public_key.curve)
+        print("### added signature", signer_info["signature"])
+    else:
+        print("### unsupported key type")
 
     signed_data["signer_infos"] = asn1crypto.cms.SignerInfos({signer_info})
     signed_data["certificates"] = asn1crypto.cms.CertificateSet(chain)
