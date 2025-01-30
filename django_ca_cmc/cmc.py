@@ -476,7 +476,7 @@ def create_cmc_response(  # pylint: disable-msg=too-many-locals
     if isinstance(ca_public_key, ec.EllipticCurvePublicKey):
         signer_info["signature"] = convert_rs_ec_signature(raw_signature, ca_public_key.curve)
     else:
-        raise ValueError(f"{ca.key_type}: Key type is not yet supported.")
+        signer_info["signature"] = raw_signature
 
     signed_data["signer_infos"] = asn1crypto.cms.SignerInfos({signer_info})
     signed_data["certificates"] = asn1crypto.cms.CertificateSet(chain)

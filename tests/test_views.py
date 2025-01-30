@@ -5,13 +5,10 @@ from http import HTTPStatus
 import asn1crypto.cms
 import asn1crypto.x509
 import pytest
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.asymmetric import ec
 from django.test import Client
 from django.urls import reverse
 from django_ca.models import Certificate, CertificateAuthority
 
-from django_ca_cmc.cmc import convert_rs_ec_signature
 from tests.utils import load_file
 
 
@@ -48,13 +45,14 @@ def test_pre_created_csr(client: Client, ca: CertificateAuthority) -> None:
     signer_infos = content["signer_infos"]
     assert isinstance(signer_infos, asn1crypto.cms.SignerInfos)
     assert len(signer_infos) == 1
-    signer_info: asn1crypto.cms.SignerInfo = signer_infos[0]
-    signature = signer_info["signature"].dump()  # signature returned by convert_rs_ec_signature
-    signed_data = signer_info["signed_attrs"].dump()  # data without retag(17)
+    # signer_info: asn1crypto.cms.SignerInfo = signer_infos[0]
+    # signature = signer_info["signature"].dump()  # signature returned by convert_rs_ec_signature
+    # signed_data = signer_info["signed_attrs"].retag(17).dump()  # data without retag(17)
 
     # Verify signature
     # converted_signature = convert_rs_ec_signature(signature, ec.SECP521R1())
-    # ca.pub.loaded.public_key().verify(signature, signed_data, ec.ECDSA(hashes.SHA512()))
+    # public_key: ec.EllipticCurvePublicKey = ca.pub.loaded.public_key()
+    # public_key.verify(signature, signed_data, ec.ECDSA(hashes.SHA512()))
 
 
 @pytest.mark.usefixtures("pre_created_client")
