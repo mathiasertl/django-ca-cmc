@@ -13,7 +13,7 @@ from cryptography import x509
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec, ed448, ed25519, padding, rsa
-from cryptography.hazmat.primitives.serialization import load_der_public_key
+from cryptography.hazmat.primitives.asymmetric.types import CertificateIssuerPublicKeyTypes
 from django.conf import settings
 from django_ca.models import Certificate, CertificateAuthority
 from python_cmc import cmc
@@ -95,8 +95,8 @@ def _public_key_verify_ecdsa_signature(
         raise ValueError("Unsupported EC curve")
 
 
-def public_key_verify_signature(  # pylint: disable=too-many-branches
-    public_key_info_pem: str, signature: bytes, signed_data: bytes
+def verify_signature(
+    public_key: CertificateIssuerPublicKeyTypes, signature: bytes, signed_data: bytes
 ) -> None:
     """
     Verify signature with a public key.
@@ -106,48 +106,20 @@ def public_key_verify_signature(  # pylint: disable=too-many-branches
 
     Potentially fails if the signature is made using nonstandard hashing of the data.
     """
-    data = public_key_info_pem.encode("utf-8")
-    if asn1crypto.pem.detect(data):
-        _, _, data = asn1crypto.pem.unarmor(data)
-
-    pub_key_asn1 = asn1crypto.keys.PublicKeyInfo.load(data)
-
-    pub_key = load_der_public_key(pub_key_asn1.dump())
-
-    if isinstance(pub_key, rsa.RSAPublicKey):
+    if isinstance(public_key, rsa.RSAPublicKey):
         try:
-            pub_key.verify(signature, signed_data, padding.PKCS1v15(), hashes.SHA256())
+            public_key.verify(signature, signed_data, padding.PKCS1v15(), hashes.SHA256())
         except InvalidSignature:
-            pub_key.verify(signature, signed_data, padding.PKCS1v15(), hashes.SHA512())
+            public_key.verify(signature, signed_data, padding.PKCS1v15(), hashes.SHA512())
 
-    elif isinstance(pub_key, ec.EllipticCurvePublicKey):
-        _public_key_verify_ecdsa_signature(pub_key, signature, signed_data)
+    elif isinstance(public_key, ec.EllipticCurvePublicKey):
+        _public_key_verify_ecdsa_signature(public_key, signature, signed_data)
 
-    elif isinstance(pub_key, (ed25519.Ed25519PublicKey | ed448.Ed448PublicKey)):
-        pub_key.verify(signature, signed_data)
+    elif isinstance(public_key, (ed25519.Ed25519PublicKey | ed448.Ed448PublicKey)):
+        public_key.verify(signature, signed_data)
 
     else:
         raise ValueError("Non supported public key in certificate")
-
-
-def pem_cert_verify_signature(pem: str, signature: bytes, signed_data: bytes) -> None:
-    """
-    Verify that signature done by the certificates private key.
-
-    raises cryptography.exceptions.InvalidSignature
-    if invalid signature or ValueError if the public key is not supported.
-
-    Potentially fails if the signature is made using nonstandard hashing of the data.
-    """
-    data = pem.encode("utf-8")
-    if asn1crypto.pem.detect(data):
-        _, _, data = asn1crypto.pem.unarmor(data)
-
-    cert = asn1crypto.x509.Certificate().load(data)
-    pub_key_info_pem: bytes = asn1crypto.pem.armor(
-        "PUBLIC KEY", cert["tbs_certificate"]["subject_public_key_info"].dump()
-    )
-    return public_key_verify_signature(pub_key_info_pem.decode("utf-8"), signature, signed_data)
 
 
 def check_request_signature(
@@ -165,12 +137,10 @@ def check_request_signature(
             cert = asn1crypto.x509.Certificate.load(client.certificate.der)
             if request_signer.chosen.native == cert.native:
                 for signer_info in signer_infos:
-                    signer_cert: bytes = asn1crypto.pem.armor(
-                        "CERTIFICATE", request_signer.chosen.dump()
-                    )
+                    signer_cert = x509.load_der_x509_certificate(request_signer.chosen.dump())
                     try:
-                        pem_cert_verify_signature(
-                            signer_cert.decode("utf-8"),
+                        verify_signature(
+                            signer_cert.public_key(),
                             signer_info["signature"].contents,
                             signer_info["signed_attrs"].retag(17).dump(),
                         )
