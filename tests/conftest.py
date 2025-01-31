@@ -174,6 +174,11 @@ for _key_size in RSA_KEY_SIZES:
     )
 
 
+@pytest.fixture(params=[f"ec_{curve.name}_ca" for curve in ELLIPTIC_CURVES])
+def ec_ca(request: "SubRequest") -> CertificateAuthority:
+    return request.getfixturevalue(request.param)
+
+
 @pytest.fixture(
     params=[f"rsa_{key_size}_ca" for key_size in RSA_KEY_SIZES]
     + [f"ec_{curve.name}_ca" for curve in ELLIPTIC_CURVES]

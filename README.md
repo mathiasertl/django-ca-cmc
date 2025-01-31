@@ -8,6 +8,9 @@
   * valid_after is hardcoded to three years, it seems
 * https://github.com/SUNET/pkcs11_ca/blob/main/src/pkcs11_ca_service/cmc.py#L177
   --> failed is True if an exception was raised. Is this maybe the opposite of what you would want?
+* convert_rs_ec_signature() -- are we sure this actually works? it seems to be somewhat
+  changing the value, but unclear in what way. r & s values are different from what cryptograph
+  produces
 
 ## Noted improvements over existing solution
 

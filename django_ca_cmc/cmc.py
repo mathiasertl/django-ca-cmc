@@ -21,76 +21,19 @@ from python_cmc import cmc
 from django_ca_cmc.models import CMCClient
 from django_ca_cmc.utils import get_signed_digest_algorithm
 
-ASN1_INTEGER_CODE = 2
-ASN1_INIT = 48
-ASN1_SECP521R1_CODE = 129
-
-
-def convert_rs_ec_signature(signature: bytes, elliptic_curve: ec.EllipticCurve) -> bytes:
-    """
-    Convert an R&S ECDSA signature into the default ASN1 format.
-
-    https://stackoverflow.com/questions/66101825/asn-1-structure-of-ecdsa-signature-in-x-509-certificate
-    """
-    if isinstance(elliptic_curve, ec.SECP521R1):
-        asn1_init = [ASN1_INIT, ASN1_SECP521R1_CODE]
-    else:
-        asn1_init = [ASN1_INIT]
-
-    r_length = int(len(signature) / 2)
-    s_length = int(len(signature) / 2)
-
-    # Get R and S bytes
-    r_data = signature[:r_length]
-    s_data = signature[r_length:]
-
-    # Remove leading zeros, since integers cant start with a 0
-    while r_data[0] == 0:
-        r_data = r_data[1:]
-        r_length -= 1
-    while s_data[0] == 0:
-        s_data = s_data[1:]
-        s_length -= 1
-
-    # Ensure the integers are positive numbers
-    if r_data[0] >= 128:  # noqa: PLR2004  # the meaning of this is unknown at the moment.
-        r_data = bytearray([0]) + r_data[:]
-        r_length += 1
-    if s_data[0] >= 128:  # noqa: PLR2004  # the meaning of this is unknown at the moment.
-        s_data = bytearray([0]) + s_data[:]
-        s_length += 1
-
-    return bytes(
-        bytearray(asn1_init)
-        + bytearray([r_length + s_length + 4])
-        + bytearray([ASN1_INTEGER_CODE, r_length])
-        + r_data
-        + bytearray([ASN1_INTEGER_CODE, s_length])
-        + s_data
-    )
-
 
 def _public_key_verify_ecdsa_signature(
     pub_key: ec.EllipticCurvePublicKey, signature: bytes, signed_data: bytes
 ) -> None:
+    # NOTE: We removed convert_rs_ec_signature conversion here. The signature comes from the
+    #   sender and hopefully does not really still require conversion. If signature verification
+    #   fails, we might have to re-add this.
     if pub_key.curve.name == "secp256r1":
-        try:
-            pub_key.verify(signature, signed_data, ec.ECDSA(hashes.SHA256()))
-        except InvalidSignature:
-            converted_signature = convert_rs_ec_signature(signature, ec.SECP256R1())
-            pub_key.verify(converted_signature, signed_data, ec.ECDSA(hashes.SHA256()))
+        pub_key.verify(signature, signed_data, ec.ECDSA(hashes.SHA256()))
     elif pub_key.curve.name == "secp384r1":
-        try:
-            pub_key.verify(signature, signed_data, ec.ECDSA(hashes.SHA384()))
-        except InvalidSignature:
-            converted_signature = convert_rs_ec_signature(signature, ec.SECP384R1())
-            pub_key.verify(converted_signature, signed_data, ec.ECDSA(hashes.SHA384()))
+        pub_key.verify(signature, signed_data, ec.ECDSA(hashes.SHA384()))
     elif pub_key.curve.name == "secp521r1":
-        try:
-            pub_key.verify(signature, signed_data, ec.ECDSA(hashes.SHA512()))
-        except InvalidSignature:
-            converted_signature = convert_rs_ec_signature(signature, ec.SECP521R1())
-            pub_key.verify(converted_signature, signed_data, ec.ECDSA(hashes.SHA512()))
+        pub_key.verify(signature, signed_data, ec.ECDSA(hashes.SHA512()))
     else:
         raise ValueError("Unsupported EC curve")
 
@@ -441,12 +384,7 @@ def create_cmc_response(  # pylint: disable-msg=too-many-locals
 
     # Sign the data
     raw_data = signer_info["signed_attrs"].retag(17).dump()
-    raw_signature = ca.sign_data(raw_data)
-    ca_public_key = ca.pub.loaded.public_key()
-    if isinstance(ca_public_key, ec.EllipticCurvePublicKey):
-        signer_info["signature"] = convert_rs_ec_signature(raw_signature, ca_public_key.curve)
-    else:
-        signer_info["signature"] = raw_signature
+    signer_info["signature"] = ca.sign_data(raw_data)
 
     signed_data["signer_infos"] = asn1crypto.cms.SignerInfos({signer_info})
     signed_data["certificates"] = asn1crypto.cms.CertificateSet(chain)
