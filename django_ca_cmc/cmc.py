@@ -384,7 +384,9 @@ def create_cmc_response(  # pylint: disable-msg=too-many-locals
 
     # Sign the data
     raw_data = signer_info["signed_attrs"].retag(17).dump()
-    signer_info["signature"] = ca.sign_data(raw_data)
+    raw_signautre = ca.sign_data(raw_data)
+    print(0, raw_data)
+    signer_info["signature"] = raw_signautre
 
     signed_data["signer_infos"] = asn1crypto.cms.SignerInfos({signer_info})
     signed_data["certificates"] = asn1crypto.cms.CertificateSet(chain)
