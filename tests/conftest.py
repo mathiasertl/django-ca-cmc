@@ -22,6 +22,7 @@ from django_ca.typehints import AllowedHashTypes
 from django_ca_cmc.models import CMCClient
 
 RSA_KEY_SIZES = (2048, 4096)
+RSA_ALGORITHMS = (hashes.SHA224(), hashes.SHA256(), hashes.SHA384(), hashes.SHA512())
 ELLIPTIC_CURVES = [ec.SECP521R1(), ec.SECP256R1(), ec.SECP384R1(), ec.SECT571K1()]
 
 
@@ -100,13 +101,15 @@ def generate_rsa_private_key_fixture(key_size: int) -> Callable[[], rsa.RSAPriva
     return func
 
 
-def generate_rsa_certificate_fixture(key_size: int) -> Callable[[SubRequest], x509.Certificate]:
+def generate_rsa_certificate_fixture(
+    key_size: int, algorithm: AllowedHashTypes
+) -> Callable[[SubRequest], x509.Certificate]:
     """Function to generate a fixture for an RSA certificate."""
 
     @pytest.fixture(scope="session")
     def func(request: "SubRequest") -> x509.Certificate:
         private_key = request.getfixturevalue(f"rsa_private_key_{key_size}")
-        return _sign(private_key, f"rsa_{key_size}", hashes.SHA256())
+        return _sign(private_key, f"rsa_{key_size}", algorithm)
 
     return func
 
@@ -193,10 +196,15 @@ for _curve in ELLIPTIC_CURVES:
     )
 for _key_size in RSA_KEY_SIZES:
     globals()[f"rsa_private_key_{_key_size}"] = generate_rsa_private_key_fixture(_key_size)
-    globals()[f"rsa_certificate_{_key_size}"] = generate_rsa_certificate_fixture(_key_size)
-    globals()[f"rsa_{_key_size}_ca"] = generate_ca_fixture(
-        f"rsa_{_key_size}", f"rsa_private_key_{_key_size}", f"rsa_certificate_{_key_size}"
-    )
+    for _algorithm in RSA_ALGORITHMS:
+        globals()[f"rsa_certificate_{_key_size}_{_algorithm.name}"] = (
+            generate_rsa_certificate_fixture(_key_size, _algorithm)
+        )
+        globals()[f"rsa_{_key_size}_{_algorithm.name}_ca"] = generate_ca_fixture(
+            f"rsa_{_key_size}_{_algorithm.name}",
+            f"rsa_private_key_{_key_size}",
+            f"rsa_certificate_{_key_size}_{_algorithm.name}",
+        )
 
 
 @pytest.fixture(params=[f"ec_{curve.name}_ca" for curve in ELLIPTIC_CURVES])
@@ -208,7 +216,11 @@ def ec_ca(request: "SubRequest") -> CertificateAuthority:
 
 
 @pytest.fixture(
-    params=[f"rsa_{key_size}_ca" for key_size in RSA_KEY_SIZES]
+    params=[
+        f"rsa_{key_size}_{algorithm.name}_ca"
+        for key_size in RSA_KEY_SIZES
+        for algorithm in RSA_ALGORITHMS
+    ]
     + [f"ec_{curve.name}_ca" for curve in ELLIPTIC_CURVES]
     + ["ed448_ca", "ed25519_ca"]
 )
