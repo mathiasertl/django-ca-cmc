@@ -18,7 +18,10 @@ from tests.utils import load_file
 @pytest.mark.usefixtures("pre_created_client")
 def test_pre_created_csr(client: Client, ca: CertificateAuthority) -> None:
     """Test valid, pre-created request payloads."""
-    if ca.key_type == "EC" and isinstance(ca.pub.loaded.public_key().curve, ec.SECT571K1):
+    public_key = ca.pub.loaded.public_key()
+    if isinstance(public_key, ec.EllipticCurvePublicKey) and isinstance(
+        public_key.curve, ec.SECT571K1
+    ):
         pytest.xfail("This curve is known to not be supported at the moment.")
 
     assert ca.certificate_set.all().count() == 0  # just assert initial state
@@ -57,9 +60,9 @@ def test_pre_created_csr(client: Client, ca: CertificateAuthority) -> None:
     signed_data = signer_info["signed_attrs"].retag(17).dump()
 
     # Verify signature
-    public_key = ca.pub.loaded.public_key()
     if isinstance(public_key, rsa.RSAPublicKey):
         algorithm = ca.algorithm
+        assert algorithm is not None  # just to make mypy happy
         padding = PSS(mgf=MGF1(algorithm), salt_length=PSS.AUTO)
         public_key.verify(signature, signed_data, algorithm=algorithm, padding=padding)
     elif isinstance(public_key, ec.EllipticCurvePublicKey):

@@ -4,7 +4,9 @@ pytest configuration and fixtures.
 .. seealso:: https://docs.pytest.org/en/stable/reference/fixtures.html
 """
 
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
+from typing import cast
 
 import pytest
 from _pytest.fixtures import SubRequest
@@ -15,6 +17,7 @@ from cryptography.hazmat.primitives.asymmetric.types import CertificateIssuerPri
 from cryptography.x509.oid import NameOID
 from django_ca.key_backends.db.models import DBStorePrivateKeyOptions
 from django_ca.models import CertificateAuthority
+from django_ca.typehints import AllowedHashTypes
 
 from django_ca_cmc.models import CMCClient
 
@@ -25,7 +28,7 @@ ELLIPTIC_CURVES = [ec.SECP521R1(), ec.SECP256R1(), ec.SECP384R1(), ec.SECT571K1(
 def _sign(
     private_key: CertificateIssuerPrivateKeyTypes,
     common_name: str,
-    algorithm: hashes.HashAlgorithm | None = None,
+    algorithm: AllowedHashTypes | None = None,
 ) -> x509.Certificate:
     subject = issuer = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, common_name)])
 
@@ -62,7 +65,9 @@ def _ca(
     return ca
 
 
-def generate_ec_private_key_fixture(elliptic_curve: ec.EllipticCurve):
+def generate_ec_private_key_fixture(
+    elliptic_curve: ec.EllipticCurve,
+) -> Callable[[], ec.EllipticCurvePrivateKey]:
     """Function to generate a fixture for an elliptic curve private key."""
 
     @pytest.fixture(scope="session")
@@ -72,7 +77,9 @@ def generate_ec_private_key_fixture(elliptic_curve: ec.EllipticCurve):
     return func
 
 
-def generate_ec_certificate_fixture(curve: ec.EllipticCurve):
+def generate_ec_certificate_fixture(
+    curve: ec.EllipticCurve,
+) -> Callable[["SubRequest"], x509.Certificate]:
     """Function to generate a fixture for an elliptic curve certificate."""
 
     @pytest.fixture(scope="session")
@@ -83,7 +90,7 @@ def generate_ec_certificate_fixture(curve: ec.EllipticCurve):
     return func
 
 
-def generate_rsa_private_key_fixture(key_size: int):
+def generate_rsa_private_key_fixture(key_size: int) -> Callable[[], rsa.RSAPrivateKey]:
     """Function to generate a fixture for an RSA private key."""
 
     @pytest.fixture(scope="session")
@@ -93,7 +100,7 @@ def generate_rsa_private_key_fixture(key_size: int):
     return func
 
 
-def generate_rsa_certificate_fixture(key_size: int):
+def generate_rsa_certificate_fixture(key_size: int) -> Callable[[SubRequest], x509.Certificate]:
     """Function to generate a fixture for an RSA certificate."""
 
     @pytest.fixture(scope="session")
@@ -104,7 +111,9 @@ def generate_rsa_certificate_fixture(key_size: int):
     return func
 
 
-def generate_ca_fixture(name: str, private_key_name: str, certificate_name: str):
+def generate_ca_fixture(
+    name: str, private_key_name: str, certificate_name: str
+) -> Callable[[SubRequest], CertificateAuthority]:
     """Function to generate a CA fixture."""
 
     @pytest.fixture
@@ -116,14 +125,14 @@ def generate_ca_fixture(name: str, private_key_name: str, certificate_name: str)
 
         # Some sanity checks that private key/certificate match
         if isinstance(private_key, ec.EllipticCurvePrivateKey):
-            public_key: ec.EllipticCurvePublicKey = certificate.public_key()
-            assert isinstance(public_key, ec.EllipticCurvePublicKey)
-            assert private_key.curve == public_key.curve
-            assert private_key.key_size == public_key.key_size
+            ec_public_key = cast(ec.EllipticCurvePublicKey, certificate.public_key())
+            assert isinstance(ec_public_key, ec.EllipticCurvePublicKey)
+            assert private_key.curve == ec_public_key.curve
+            assert private_key.key_size == ec_public_key.key_size
         elif isinstance(private_key, rsa.RSAPrivateKey):
-            public_key: rsa.RSAPublicKey = certificate.public_key()
-            assert isinstance(public_key, rsa.RSAPublicKey)
-            assert private_key.key_size == public_key.key_size
+            rsa_public_key = cast(rsa.RSAPublicKey, certificate.public_key())
+            assert isinstance(rsa_public_key, rsa.RSAPublicKey)
+            assert private_key.key_size == rsa_public_key.key_size
 
         return _ca(name, private_key, certificate)
 
@@ -137,7 +146,7 @@ def ed448_private_key() -> ed448.Ed448PrivateKey:
 
 
 @pytest.fixture(scope="session")
-def ed448_certificate(ed448_private_key) -> x509.Certificate:
+def ed448_certificate(ed448_private_key: ed448.Ed448PrivateKey) -> x509.Certificate:
     """Session fixture for a signed certificate of an Ed448 CA."""
     return _sign(ed448_private_key, "ed448")
 
@@ -160,7 +169,7 @@ def ed25519_private_key() -> ed25519.Ed25519PrivateKey:
 
 
 @pytest.fixture(scope="session")
-def ed25519_certificate(ed25519_private_key) -> x509.Certificate:
+def ed25519_certificate(ed25519_private_key: ed25519.Ed25519PrivateKey) -> x509.Certificate:
     """Session fixture for a signed certificate of an Ed25519 CA."""
     return _sign(ed25519_private_key, "ed25519")
 
@@ -193,7 +202,9 @@ for _key_size in RSA_KEY_SIZES:
 @pytest.fixture(params=[f"ec_{curve.name}_ca" for curve in ELLIPTIC_CURVES])
 def ec_ca(request: "SubRequest") -> CertificateAuthority:
     """Fixture for all elliptic curve-based CAs."""
-    return request.getfixturevalue(request.param)
+    ca = request.getfixturevalue(request.param)
+    assert isinstance(ca, CertificateAuthority)
+    return ca
 
 
 @pytest.fixture(
@@ -203,7 +214,9 @@ def ec_ca(request: "SubRequest") -> CertificateAuthority:
 )
 def ca(request: "SubRequest") -> CertificateAuthority:
     """Fixture for all RSA, elliptic curve, Ed448 and Ed25519 based CAs."""
-    return request.getfixturevalue(request.param)
+    ca = request.getfixturevalue(request.param)
+    assert isinstance(ca, CertificateAuthority)
+    return ca
 
 
 @pytest.fixture

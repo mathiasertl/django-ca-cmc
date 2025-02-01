@@ -7,7 +7,7 @@ import asn1crypto.x509
 from cryptography import x509
 from cryptography.exceptions import InvalidSignature
 from django.conf import settings
-from django.core.exceptions import BadRequest, PermissionDenied
+from django.core.exceptions import BadRequest, ImproperlyConfigured, PermissionDenied
 from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest, HttpResponseForbidden
 from django.views import View
 from django_ca.models import CertificateAuthority
@@ -26,6 +26,8 @@ CONTENT_TYPE = "application/pkcs7-mime"
 
 class CMCView(View):
     """View handling CMC requests."""
+
+    serial: str | None = None
 
     def handle_request(self, ca: CertificateAuthority, data: bytes) -> bytes:
         """Handle and extract CMS CMC request."""
@@ -82,7 +84,10 @@ class CMCView(View):
             return HttpResponseBadRequest("invalid content type", content_type=CONTENT_TYPE)
 
         if serial is None:
-            serial = settings.CMC_DEFAULT_CA
+            serial = self.serial
+        if serial is None:
+            # If it's still None, we cannot determine the serial.
+            raise ImproperlyConfigured("No serial configured for this view.")
 
         certificate_authority = CertificateAuthority.objects.usable().get(serial=serial)
 

@@ -18,6 +18,7 @@ from django.conf import settings
 from django_ca.models import Certificate, CertificateAuthority
 from python_cmc import cmc
 
+from django_ca_cmc.constants import SUPPORTED_PUBLIC_KEY_TYPES
 from django_ca_cmc.models import CMCClient
 from django_ca_cmc.utils import get_signed_digest_algorithm
 
@@ -81,12 +82,16 @@ def check_request_signature(
             if request_signer.chosen.native == cert.native:
                 for signer_info in signer_infos:
                     signer_cert = x509.load_der_x509_certificate(request_signer.chosen.dump())
-                    try:
-                        verify_signature(
-                            signer_cert.public_key(),
-                            signer_info["signature"].contents,
-                            signer_info["signed_attrs"].retag(17).dump(),
+                    public_key = signer_cert.public_key()
+                    if not isinstance(public_key, SUPPORTED_PUBLIC_KEY_TYPES):
+                        raise ValueError(
+                            f"{public_key}: Client passed an unsupported public signer key."
                         )
+
+                    signature = signer_info["signature"].contents
+                    signed_data = signer_info["signed_attrs"].retag(17).dump()
+                    try:
+                        verify_signature(public_key, signature, signed_data)
                         return
                     except (InvalidSignature, ValueError, TypeError):
                         pass

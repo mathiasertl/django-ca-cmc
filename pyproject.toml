@@ -69,6 +69,17 @@ strict = true
 show_error_codes = true
 mypy_path = "django_ca_cmc:demo"
 plugins = ["mypy_django_plugin.main"]
+exclude = [
+    "build/",
+    "dist/",
+]
+
+[[tool.mypy.overrides]]
+# asn1crypto does not have type hints.
+module = [
+    "asn1crypto.*",
+]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "tests.settings"
