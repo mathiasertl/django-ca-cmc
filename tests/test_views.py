@@ -18,6 +18,9 @@ from tests.utils import load_file
 @pytest.mark.usefixtures("pre_created_client")
 def test_pre_created_csr(client: Client, ca: CertificateAuthority) -> None:
     """Test valid, pre-created request payloads."""
+    if ca.key_type == "EC" and isinstance(ca.pub.loaded.public_key().curve, ec.SECT571K1):
+        pytest.xfail("This curve is known to not be supported at the moment.")
+
     assert ca.certificate_set.all().count() == 0  # just assert initial state
 
     decoded = load_file("cmc_with_csr")

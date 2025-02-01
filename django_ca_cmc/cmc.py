@@ -360,11 +360,7 @@ def create_cmc_response(  # pylint: disable-msg=too-many-locals
                         asn1crypto.cms.CMSAlgorithmProtection(
                             {
                                 "digest_algorithm": asn1crypto.algos.DigestAlgorithm(
-                                    {
-                                        "algorithm": asn1crypto.algos.DigestAlgorithmId(
-                                            "2.16.840.1.101.3.4.2.1"
-                                        )
-                                    }
+                                    {"algorithm": asn1crypto.algos.DigestAlgorithmId("sha256")}
                                 ),
                                 "signature_algorithm": signed_digest_algorithm,
                             }
@@ -378,7 +374,7 @@ def create_cmc_response(  # pylint: disable-msg=too-many-locals
     signer_info["signed_attrs"] = cms_attributes
 
     signer_info["digest_algorithm"] = asn1crypto.algos.DigestAlgorithm(
-        {"algorithm": asn1crypto.algos.DigestAlgorithmId("2.16.840.1.101.3.4.2.1")}
+        {"algorithm": asn1crypto.algos.DigestAlgorithmId("sha256")}
     )
     signer_info["signature_algorithm"] = signed_digest_algorithm
 
