@@ -84,6 +84,7 @@ pythonpath = [
 ]
 
 [tool.ruff]
+extend-exclude = ["migrations"]
 line-length = 100
 
 [tool.ruff.lint]
@@ -105,6 +106,7 @@ ignore = [
     "D105",
     "D203",
     "D212",
+    "D401",
 ]
 
 [tool.setuptools.packages.find]

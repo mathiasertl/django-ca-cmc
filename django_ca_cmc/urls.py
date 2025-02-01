@@ -1,3 +1,5 @@
+"""URL configuration for the django-ca-cmc app."""
+
 from django.urls import URLPattern, URLResolver, path
 
 from django_ca_cmc import views

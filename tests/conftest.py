@@ -12,7 +12,7 @@ from cryptography import x509
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec, ed448, ed25519, rsa
 from cryptography.hazmat.primitives.asymmetric.types import CertificateIssuerPrivateKeyTypes
-from cryptography.x509.oid import ExtensionOID, NameOID
+from cryptography.x509.oid import NameOID
 from django_ca.key_backends.db.models import DBStorePrivateKeyOptions
 from django_ca.models import CertificateAuthority
 
@@ -63,6 +63,8 @@ def _ca(
 
 
 def generate_ec_private_key_fixture(elliptic_curve: ec.EllipticCurve):
+    """Function to generate a fixture for an elliptic curve private key."""
+
     @pytest.fixture(scope="session")
     def func() -> ec.EllipticCurvePrivateKey:
         return ec.generate_private_key(elliptic_curve)
@@ -71,6 +73,8 @@ def generate_ec_private_key_fixture(elliptic_curve: ec.EllipticCurve):
 
 
 def generate_ec_certificate_fixture(curve: ec.EllipticCurve):
+    """Function to generate a fixture for an elliptic curve certificate."""
+
     @pytest.fixture(scope="session")
     def func(request: "SubRequest") -> x509.Certificate:
         private_key = request.getfixturevalue(f"ec_private_key_{curve.name}")
@@ -80,6 +84,8 @@ def generate_ec_certificate_fixture(curve: ec.EllipticCurve):
 
 
 def generate_rsa_private_key_fixture(key_size: int):
+    """Function to generate a fixture for an RSA private key."""
+
     @pytest.fixture(scope="session")
     def func() -> rsa.RSAPrivateKey:
         return rsa.generate_private_key(public_exponent=65537, key_size=key_size)
@@ -88,6 +94,8 @@ def generate_rsa_private_key_fixture(key_size: int):
 
 
 def generate_rsa_certificate_fixture(key_size: int):
+    """Function to generate a fixture for an RSA certificate."""
+
     @pytest.fixture(scope="session")
     def func(request: "SubRequest") -> x509.Certificate:
         private_key = request.getfixturevalue(f"rsa_private_key_{key_size}")
@@ -97,6 +105,8 @@ def generate_rsa_certificate_fixture(key_size: int):
 
 
 def generate_ca_fixture(name: str, private_key_name: str, certificate_name: str):
+    """Function to generate a CA fixture."""
+
     @pytest.fixture
     def func(request: "SubRequest") -> CertificateAuthority:
         """Fixture for RSA-based certificate authorities."""
@@ -122,11 +132,13 @@ def generate_ca_fixture(name: str, private_key_name: str, certificate_name: str)
 
 @pytest.fixture(scope="session")
 def ed448_private_key() -> ed448.Ed448PrivateKey:
+    """Session fixture for an Ed448 private key."""
     return ed448.Ed448PrivateKey.generate()
 
 
 @pytest.fixture(scope="session")
 def ed448_certificate(ed448_private_key) -> x509.Certificate:
+    """Session fixture for a signed certificate of an Ed448 CA."""
     return _sign(ed448_private_key, "ed448")
 
 
@@ -136,17 +148,20 @@ def ed448_ca(
     ed448_private_key: ed448.Ed448PrivateKey,
     ed448_certificate: x509.Certificate,
 ) -> CertificateAuthority:
+    """Fixture for an Ed448 CA."""
     request.getfixturevalue("db")
     return _ca("ed448", ed448_private_key, ed448_certificate)
 
 
 @pytest.fixture(scope="session")
 def ed25519_private_key() -> ed25519.Ed25519PrivateKey:
+    """Session fixture for an Ed25519 private key."""
     return ed25519.Ed25519PrivateKey.generate()
 
 
 @pytest.fixture(scope="session")
 def ed25519_certificate(ed25519_private_key) -> x509.Certificate:
+    """Session fixture for a signed certificate of an Ed25519 CA."""
     return _sign(ed25519_private_key, "ed25519")
 
 
@@ -156,6 +171,7 @@ def ed25519_ca(
     ed25519_private_key: ed25519.Ed25519PrivateKey,
     ed25519_certificate: x509.Certificate,
 ) -> CertificateAuthority:
+    """Fixture for an Ed25519 CA."""
     request.getfixturevalue("db")
     return _ca("ed25519", ed25519_private_key, ed25519_certificate)
 
@@ -176,6 +192,7 @@ for _key_size in RSA_KEY_SIZES:
 
 @pytest.fixture(params=[f"ec_{curve.name}_ca" for curve in ELLIPTIC_CURVES])
 def ec_ca(request: "SubRequest") -> CertificateAuthority:
+    """Fixture for all elliptic curve-based CAs."""
     return request.getfixturevalue(request.param)
 
 
@@ -185,6 +202,7 @@ def ec_ca(request: "SubRequest") -> CertificateAuthority:
     + ["ed448_ca", "ed25519_ca"]
 )
 def ca(request: "SubRequest") -> CertificateAuthority:
+    """Fixture for all RSA, elliptic curve, Ed448 and Ed25519 based CAs."""
     return request.getfixturevalue(request.param)
 
 
