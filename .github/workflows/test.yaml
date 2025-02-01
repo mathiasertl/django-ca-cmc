@@ -28,5 +28,7 @@ jobs:
       - name: uv sync
         run: uv sync
 
-      - name: mypy
-        run: uv run pytest -v
+      # Run tests without coverage for now, as it's not technically possible to create
+      # 100% coverage for now (e.g. we cannot generate client requests yet).
+      - name: pytest
+        run: uv run pytest -v --no-cov

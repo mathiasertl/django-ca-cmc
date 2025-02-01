@@ -12,7 +12,7 @@ import pytest
 from _pytest.fixtures import SubRequest
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.asymmetric import ec, ed448, ed25519, rsa
+from cryptography.hazmat.primitives.asymmetric import dsa, ec, ed448, ed25519, rsa
 from cryptography.hazmat.primitives.asymmetric.types import CertificateIssuerPrivateKeyTypes
 from cryptography.x509.oid import NameOID
 from django_ca.key_backends.db.models import DBStorePrivateKeyOptions
@@ -140,6 +140,18 @@ def generate_ca_fixture(
         return _ca(name, private_key, certificate)
 
     return func
+
+
+@pytest.fixture(scope="session")
+def dsa_private_key() -> dsa.DSAPrivateKey:
+    """Session fixture for a DSA private key."""
+    return dsa.generate_private_key(key_size=1024)
+
+
+@pytest.fixture(scope="session")
+def dsa_certificate(dsa_private_key: dsa.DSAPrivateKey) -> x509.Certificate:
+    """Session fixture for a signed certificate of a DSA CA."""
+    return _sign(dsa_private_key, "dsa", hashes.SHA256())
 
 
 @pytest.fixture(scope="session")
