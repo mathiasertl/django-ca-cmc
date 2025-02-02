@@ -2,11 +2,11 @@ EXTEND_INSTALLED_APPS:
   - django_ca_cmc
 
 EXTEND_URL_PATTERNS:
-  - route: /cmc01
+  - route: cmc01
     view:
       view: django_ca_cmc.views.CMCView
     name: cmc_default
-  - route: /cmc/
+  - route: cmc/
     view:
       module: django_ca_cmc.urls
       namespace: django_ca_cmc
