@@ -5,6 +5,50 @@ A plugin for [django-ca](https://django-ca.readthedocs.io/) implementing a subse
 
 The CMC parts of the code are based on [SUNET/pkcs11_ca](https://github.com/SUNET/pkcs11_ca).
 
+## Current deployment scenario
+
+At present, you need both django-ca-cmc and django-ca checked out, to build the necessary images.
+This is at present pretty convoluted (primarily because we require a release of django-ca first),
+but will get better soon:
+
+1. Checkout https://github.com/mathiasertl/django-ca-cmc
+2. Checkout https://github.com/mathiasertl/django-ca - checkout this branch: `feature/eu-0001-cmc-support`.
+3. In **django-ca**, build the Docker image for django-ca with the official tag:
+   
+   ```
+   docker build -t mathiasertl/django-ca:cmc .
+   ```
+   
+4. In **django-ca-cmc**, build a Docker image based on the Django-ca image you just build:
+   
+   ```
+   docker build -t django-ca-cmc --build-arg DJANGO_CA_VERSION=cmc .
+   ```
+
+5. Local configuration:
+
+   https://django-ca.readthedocs.io/en/latest/quickstart/docker_compose.html#get-configuration
+
+   You need a `localsettings.yaml` (in particular to configure private key backends), add volume configuration
+   in `compose.override.yaml` and the `.env` file. Note that in the test here you probably don't have TLS
+   and can't use `NGINX_` variables in the `.env` file. 
+
+6. Run docker compose to start the setup:
+
+   ```aiignore
+   export COMPOSE_FILE=../django-ca/compose.yaml:compose.override.yaml
+   export DJANGO_CA_IMAGE=django-ca-cmc
+   docker compose up
+   ```
+
+7. Create CAs (note that you need the env variables from above for this to work):
+
+    https://django-ca.readthedocs.io/en/latest/quickstart/docker_compose.html#create-admin-user-and-set-up-cas
+
+8. You can access cmc for any CA at `/cmc/<serial>/` (get serials with `manage list_cas`)
+9. To enable the `/cmc01` endpoint you need to tell it which CA to use by serial: Add the 
+   `CA_DEFAULT_CMC_SERIAL` to `localsettings.yaml` and update your setup. 
+
 ## Open questions
 
 * Can URL endpoints change (see `urls.py` for config, but can be changed at will)?

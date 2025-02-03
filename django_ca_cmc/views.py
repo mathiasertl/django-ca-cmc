@@ -6,6 +6,7 @@ import asn1crypto.cms
 import asn1crypto.x509
 from cryptography import x509
 from cryptography.exceptions import InvalidSignature
+from django.conf import settings
 from django.core.exceptions import BadRequest, ImproperlyConfigured, PermissionDenied
 from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest, HttpResponseForbidden
 from django.views import View
@@ -84,6 +85,8 @@ class CMCView(View):
 
         if serial is None:
             serial = self.serial
+        if serial is None:
+            serial = settings.CA_DEFAULT_CMC_SERIAL
         if serial is None:
             # If it's still None, we cannot determine the serial.
             raise ImproperlyConfigured("No serial configured for this view.")
