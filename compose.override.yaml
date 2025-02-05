@@ -1,4 +1,4 @@
 services:
   webserver:
     volumes:
-      - /home/mati/git/mati/django-ca-cmc/nginx/cmc.conf:/etc/nginx/conf.d/include.d/http/cmc.conf
+      - ./nginx/cmc.conf:/etc/nginx/conf.d/include.d/http/cmc.conf

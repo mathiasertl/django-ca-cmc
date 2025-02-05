@@ -22,6 +22,8 @@ class CMCClient(models.Model):
     not_after = models.DateTimeField(null=False, blank=False)
     serial = models.CharField(max_length=64, unique=True)
 
+    comment = models.TextField(default="")
+
     def __str__(self) -> str:
         return self.serial
 
