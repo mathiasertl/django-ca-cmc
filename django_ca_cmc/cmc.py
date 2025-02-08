@@ -15,6 +15,7 @@ from cryptography import x509
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec, ed448, ed25519, padding, rsa
+from cryptography.hazmat.primitives.asymmetric.padding import PKCS1v15
 from cryptography.hazmat.primitives.asymmetric.types import CertificateIssuerPublicKeyTypes
 from django.conf import settings
 from django_ca.models import Certificate, CertificateAuthority, X509CertMixin
@@ -344,6 +345,7 @@ def create_cmc_response(  # pylint: disable-msg=too-many-locals
 
     # Get signed digest algorithm
     signed_digest_algorithm = get_signed_digest_algorithm(ca.pub.loaded)
+    log.warning("signed_digest_algorithm: %s", signed_digest_algorithm)
 
     cms_attributes.append(
         asn1crypto.cms.CMSAttribute(
@@ -372,6 +374,9 @@ def create_cmc_response(  # pylint: disable-msg=too-many-locals
                         asn1crypto.cms.CMSAlgorithmProtection(
                             {
                                 "digest_algorithm": asn1crypto.algos.DigestAlgorithm(
+                                    # pkcs11_ca has "2.16.840.1.101.3.4.2.1" instead of "sha256".
+                                    # This should be equivalent.
+                                    # https://github.com/SUNET/pkcs11_ca/blob/3c31991631d07dad367293ee3ac7b5539d244d24/src/pkcs11_ca_service/cmc.py#L282C80-L282C104
                                     {"algorithm": asn1crypto.algos.DigestAlgorithmId("sha256")}
                                 ),
                                 "signature_algorithm": signed_digest_algorithm,
@@ -386,13 +391,21 @@ def create_cmc_response(  # pylint: disable-msg=too-many-locals
     signer_info["signed_attrs"] = cms_attributes
 
     signer_info["digest_algorithm"] = asn1crypto.algos.DigestAlgorithm(
+        # pkcs11_ca has "2.16.840.1.101.3.4.2.1" instead of "sha256".
+        # This should be equivalent.
+        # https://github.com/SUNET/pkcs11_ca/blob/3c31991631d07dad367293ee3ac7b5539d244d24/src/pkcs11_ca_service/cmc.py#L296
         {"algorithm": asn1crypto.algos.DigestAlgorithmId("sha256")}
     )
     signer_info["signature_algorithm"] = signed_digest_algorithm
 
     # Sign the data
     raw_data = signer_info["signed_attrs"].retag(17).dump()
-    raw_signautre = ca.sign_data(raw_data)
+
+    sign_kwargs = {}
+    if ca.key_type == "RSA":
+        sign_kwargs["padding"] = PKCS1v15()
+    raw_signautre = ca.sign_data(raw_data, **sign_kwargs)
+
     signer_info["signature"] = raw_signautre
 
     signed_data["signer_infos"] = asn1crypto.cms.SignerInfos({signer_info})
