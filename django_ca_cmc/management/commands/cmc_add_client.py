@@ -36,13 +36,13 @@ class Command(BaseCommand):
         """Handle method."""
         raw_certificate = self.read_file(certificate)
         try:
-            certificate = x509.load_pem_x509_certificate(raw_certificate)
+            loaded_certificate = x509.load_pem_x509_certificate(raw_certificate)
         except ValueError:
             try:
-                certificate = x509.load_der_x509_certificate(raw_certificate)
+                loaded_certificate = x509.load_der_x509_certificate(raw_certificate)
             except ValueError as ex:
                 raise CommandError("Cannot parse certificate.") from ex
 
         client = CMCClient(comment=comment)
-        client.update_certificate(certificate)
+        client.update_certificate(loaded_certificate)
         client.save()

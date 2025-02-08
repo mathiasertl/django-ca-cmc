@@ -3,6 +3,7 @@
 import hashlib
 import logging
 import secrets
+from collections.abc import Sequence
 from datetime import UTC, datetime
 
 import asn1crypto.algos
@@ -291,8 +292,7 @@ def create_cmc_response(  # pylint: disable-msg=too-many-locals
 ) -> bytes:
     """Create a CMS response containing a CMC package."""
     # Add CA bundle and created certificates to the chain.
-    model_chain: list[X509CertMixin] = ca.bundle
-    model_chain += created_certs.values()
+    model_chain: Sequence[X509CertMixin] = ca.bundle + list(created_certs.values())
     log.warning("Certificates in response: %s", model_chain)
 
     # Convert chain to asn1crypto options

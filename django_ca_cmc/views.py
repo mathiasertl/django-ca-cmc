@@ -92,7 +92,7 @@ class CMCView(View):
         if serial is None:
             serial = self.serial
         if serial is None:
-            serial = settings.CA_DEFAULT_CMC_SERIAL
+            serial = getattr(settings, "CA_DEFAULT_CMC_SERIAL", None)
         if serial is None:
             # If it's still None, we cannot determine the serial.
             raise ImproperlyConfigured("No serial configured for this view.")
