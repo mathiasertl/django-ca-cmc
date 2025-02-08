@@ -9,7 +9,9 @@ from cryptography.exceptions import InvalidSignature
 from django.conf import settings
 from django.core.exceptions import BadRequest, ImproperlyConfigured, PermissionDenied
 from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest, HttpResponseForbidden
+from django.utils.decorators import method_decorator
 from django.views import View
+from django.views.decorators.csrf import csrf_exempt
 from django_ca.models import CertificateAuthority
 from python_cmc import cmc
 
@@ -24,6 +26,7 @@ log = logging.getLogger(__name__)
 CONTENT_TYPE = "application/pkcs7-mime"
 
 
+@method_decorator(csrf_exempt, name="dispatch")
 class CMCView(View):
     """View handling CMC requests."""
 
@@ -78,10 +81,10 @@ class CMCView(View):
 
         return ret
 
-    def get(self, request: HttpRequest, serial: str | None = None) -> HttpResponse:  # noqa: D102
+    def get(self, request: HttpRequest, serial: str | None = None) -> HttpResponse:
         return HttpResponse("CMC endpoint here!")
 
-    def post(self, request: HttpRequest, serial: str | None = None) -> HttpResponse:  # noqa: D102
+    def post(self, request: HttpRequest, serial: str | None = None) -> HttpResponse:
         content_type = request.headers.get("Content-type")
         if content_type is None or content_type != CONTENT_TYPE:
             return HttpResponseBadRequest("invalid content type", content_type=CONTENT_TYPE)
