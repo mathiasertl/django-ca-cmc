@@ -404,9 +404,9 @@ def create_cmc_response(  # pylint: disable-msg=too-many-locals
     sign_kwargs = {}
     if ca.key_type == "RSA":
         sign_kwargs["padding"] = PKCS1v15()
-    raw_signautre = ca.sign_data(raw_data, **sign_kwargs)
+    raw_signature = ca.sign_data(raw_data, **sign_kwargs)
 
-    signer_info["signature"] = raw_signautre
+    signer_info["signature"] = raw_signature
 
     signed_data["signer_infos"] = asn1crypto.cms.SignerInfos({signer_info})
     signed_data["certificates"] = asn1crypto.cms.CertificateSet(chain)

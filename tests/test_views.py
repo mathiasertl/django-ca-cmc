@@ -7,7 +7,7 @@ import asn1crypto.x509
 import pytest
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec, ed448, ed25519, rsa
-from cryptography.hazmat.primitives.asymmetric.padding import MGF1, PSS
+from cryptography.hazmat.primitives.asymmetric.padding import MGF1, PSS, PKCS1v15
 from django.test import Client
 from django.urls import reverse
 from django_ca.models import Certificate, CertificateAuthority
@@ -63,8 +63,7 @@ def test_pre_created_csr(client: Client, ca: CertificateAuthority) -> None:
     if isinstance(public_key, rsa.RSAPublicKey):
         algorithm = ca.algorithm
         assert algorithm is not None  # just to make mypy happy
-        padding = PSS(mgf=MGF1(algorithm), salt_length=PSS.AUTO)
-        public_key.verify(signature, signed_data, algorithm=algorithm, padding=padding)
+        public_key.verify(signature, signed_data, algorithm=algorithm, padding=PKCS1v15())
     elif isinstance(public_key, ec.EllipticCurvePublicKey):
         public_key.verify(signature, signed_data, ec.ECDSA(hashes.SHA512()))
     elif isinstance(public_key, ed448.Ed448PublicKey | ed25519.Ed25519PublicKey):
