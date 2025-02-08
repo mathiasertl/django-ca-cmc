@@ -21,4 +21,6 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 FROM mathiasertl/django-ca:${DJANGO_CA_VERSION}
 COPY conf/* /usr/src/django-ca/ca/conf/compose/
+COPY nginx/cmc.conf /usr/src/django-ca/nginx/include.d/http/
+COPY nginx/cmc.conf /usr/src/django-ca/nginx/include.d/https/
 COPY --from=build /usr/src/django-ca/.venv/ /usr/src/django-ca/.venv/

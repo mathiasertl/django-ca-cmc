@@ -31,7 +31,7 @@ Get it from [this branch](https://github.com/mathiasertl/django-ca/tree/feature/
 
 #### Add `compose.override.yaml`
 
-TODO: Can we include nginx conf in container?
+Nothing special is needed (everything is included in the Docker image).
 
 #### Add `.env` file
 
