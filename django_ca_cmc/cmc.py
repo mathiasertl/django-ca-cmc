@@ -294,7 +294,15 @@ def create_cmc_response(  # pylint: disable-msg=too-many-locals
     """Create a CMS response containing a CMC package."""
     # Add CA bundle and created certificates to the chain.
     model_chain: Sequence[X509CertMixin] = ca.bundle + list(created_certs.values())
-    log.warning("Certificates in response: %s", model_chain)
+
+    # Get signed digest algorithm
+    # pkcs11_ca has "2.16.840.1.101.3.4.2.1" instead of "sha256".
+    # This should be equivalent.
+    # https://github.com/SUNET/pkcs11_ca/blob/3c31991631d07dad367293ee3ac7b5539d244d24/src/pkcs11_ca_service/cmc.py#L282C80-L282C104
+    digest_algorithm = asn1crypto.algos.DigestAlgorithm(
+        {"algorithm": asn1crypto.algos.DigestAlgorithmId("sha256")}
+    )
+    signature_algorithm = get_signed_digest_algorithm(ca.pub.loaded)
 
     # Convert chain to asn1crypto options
     chain: list[asn1crypto.x509.Certificate] = [
@@ -311,13 +319,7 @@ def create_cmc_response(  # pylint: disable-msg=too-many-locals
 
     signed_data = asn1crypto.cms.SignedData()
     signed_data["version"] = 2
-    signed_data["digest_algorithms"] = asn1crypto.cms.DigestAlgorithms(
-        {
-            asn1crypto.algos.DigestAlgorithm(
-                {"algorithm": asn1crypto.algos.DigestAlgorithmId("2.16.840.1.101.3.4.2.1")}
-            )
-        }
-    )
+    signed_data["digest_algorithms"] = asn1crypto.cms.DigestAlgorithms({digest_algorithm})
     signed_data["encap_content_info"] = eci
 
     signer_info = asn1crypto.cms.SignerInfo()
@@ -342,10 +344,6 @@ def create_cmc_response(  # pylint: disable-msg=too-many-locals
     hash_module = hashlib.sha256()
     hash_module.update(signed_data["encap_content_info"]["content"].contents)
     digest = hash_module.digest()
-
-    # Get signed digest algorithm
-    signed_digest_algorithm = get_signed_digest_algorithm(ca.pub.loaded)
-    log.warning("signed_digest_algorithm: %s", signed_digest_algorithm)
 
     cms_attributes.append(
         asn1crypto.cms.CMSAttribute(
@@ -373,13 +371,8 @@ def create_cmc_response(  # pylint: disable-msg=too-many-locals
                     [
                         asn1crypto.cms.CMSAlgorithmProtection(
                             {
-                                "digest_algorithm": asn1crypto.algos.DigestAlgorithm(
-                                    # pkcs11_ca has "2.16.840.1.101.3.4.2.1" instead of "sha256".
-                                    # This should be equivalent.
-                                    # https://github.com/SUNET/pkcs11_ca/blob/3c31991631d07dad367293ee3ac7b5539d244d24/src/pkcs11_ca_service/cmc.py#L282C80-L282C104
-                                    {"algorithm": asn1crypto.algos.DigestAlgorithmId("sha256")}
-                                ),
-                                "signature_algorithm": signed_digest_algorithm,
+                                "digest_algorithm": digest_algorithm,
+                                "signature_algorithm": signature_algorithm,
                             }
                         )
                     ]
@@ -390,13 +383,8 @@ def create_cmc_response(  # pylint: disable-msg=too-many-locals
 
     signer_info["signed_attrs"] = cms_attributes
 
-    signer_info["digest_algorithm"] = asn1crypto.algos.DigestAlgorithm(
-        # pkcs11_ca has "2.16.840.1.101.3.4.2.1" instead of "sha256".
-        # This should be equivalent.
-        # https://github.com/SUNET/pkcs11_ca/blob/3c31991631d07dad367293ee3ac7b5539d244d24/src/pkcs11_ca_service/cmc.py#L296
-        {"algorithm": asn1crypto.algos.DigestAlgorithmId("sha256")}
-    )
-    signer_info["signature_algorithm"] = signed_digest_algorithm
+    signer_info["digest_algorithm"] = digest_algorithm
+    signer_info["signature_algorithm"] = signature_algorithm
 
     # Sign the data
     raw_data = signer_info["signed_attrs"].retag(17).dump()
