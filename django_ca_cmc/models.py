@@ -24,6 +24,10 @@ class CMCClient(models.Model):
 
     comment = models.TextField(default="")
 
+    class Meta:
+        verbose_name = _("CMC client")
+        verbose_name_plural = _("CMC clients")
+
     def __str__(self) -> str:
         return self.serial
 

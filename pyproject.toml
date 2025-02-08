@@ -115,7 +115,10 @@ extend-select = [
 ]
 
 ignore = [
-    "D105",
+    "D102",  # Missing docstring in public method - includes inherited methods
+    "D104",  # Missing docstring in public package - includes even empty __init__.py files
+    "D105",  # Missing docstring in magic method - includes __str__() etc
+    "D106",  # Missing docstring in public nested class - includes Meta/Media classes
     "D203",
     "D212",
     "D401",

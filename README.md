@@ -46,7 +46,7 @@ DJANGO_CA_VERSION=cmc
 Add a CMC client certificate:
 
 ```
-cat client.pem | docker compose exec -T frontend manage cmc_add_client 
+cat client.pem | docker compose exec -T frontend manage cmc_add_client -
 ```
 
 You can access CMC for any CA at `/cmc/<serial>/` (get serials with `manage list_cas`). To enable the 
@@ -61,25 +61,6 @@ curl http://localhost/cmc01
 
 ## Open questions
 
-* Can URL endpoints change (see `urls.py` for config, but can be changed at will)?
-* Should CMC client certificates be tied to one or more CAs?
-  (Currently, every client certificate works for every CA, as in the original implementation).
-* Is there a minimum required Python version (Docker image is built with 3.13).
-* Extensions from the CSR is currently copied to the certificate, which is considered dangerous.
-  Trace of this claim:
-  * [post_cmc() calls cmc_handle_request()](https://github.com/SUNET/pkcs11_ca/blob/main/src/pkcs11_ca_service/main.py#L725):
-    This is the FastAPI endpoint.
-  * [cmc_handle_request() calls create_cert_from_csr()](https://github.com/SUNET/pkcs11_ca/blob/main/src/pkcs11_ca_service/cmc.py#L397):
-    This parses the raw request body.
-  * [create_cert_from_csr() calls sign_csr()](https://github.com/SUNET/pkcs11_ca/blob/main/src/pkcs11_ca_service/cmc.py#L86):
-    `sign_csr()` creates a signed certificate. This function does **not** pass `keep_csr_extensions=False`.
-  * [sign_csr() calls _request_to_tbs_certificate()](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_pkcs11/csr.py#L351)
-    `keep_csr_extensions` has not been passed and is thus ``None``.
-  * [_request_to_tbs_certificate()](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_pkcs11/csr.py#L65-L69)
-    copies CSR extensions to `tbs`, which is the certificate.
-  
-  As an example, I see no reason why this code would not happily pass a `BasicConstraints` extension
-  to signed certificate, potentially making it a Certificate Authority.
 * `not_after` is hardcoded to three years
   ([source](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_pkcs11/csr.py#L159)).
   Current implementation is default CA_DEFAULT_EXPIRES, which is also the default for the admin
