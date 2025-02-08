@@ -11,35 +11,53 @@ At present, you need both django-ca-cmc and django-ca checked out, to build the 
 This is at present pretty convoluted (primarily because we require a release of django-ca first),
 but will get better soon:
 
-1. Follow the
-   [Docker Compose quickstart guide](https://django-ca.readthedocs.io/en/latest/quickstart/docker_compose.html).
+### Initial setup
 
-   You need a `localsettings.yaml` (in particular to configure private key backends), add volume configuration
-   in `compose.override.yaml` and the `.env` file. Note that in the test here you probably don't have TLS
-   and can't use `NGINX_` variables in the `.env` file.
-2. Fetch [cmc.conf](https://github.com/mathiasertl/django-ca-cmc/blob/main/nginx/cmc.conf) and map it to 
-   `/etc/nginx/conf.d/include.d/http/cmc.conf` via `compose.override.yaml`.
-3. Run docker compose to start the setup:
+Follow the [Docker Compose quickstart guide]
+(https://django-ca.readthedocs.io/en/latest/quickstart/docker_compose.html).
 
-   ```
-   export COMPOSE_FILE=../django-ca/compose.yaml:compose.override.yaml
-   export DJANGO_CA_VERSION=cmc
-   docker compose up
-   ```
+If you do not want to enable TLS:
 
-4. Create CAs:
+* Skip generating DH parameters.
+* Don't set `NGINX_*` variables in `.env`.
 
-    https://django-ca.readthedocs.io/en/latest/quickstart/docker_compose.html#create-admin-user-and-set-up-cas
+#### Configuration file
 
-5. Add a CMC client certificate:
+Nothing special required.
 
-   ```
-   cat client.pem | docker compose exec -T frontend manage cmc_add_client 
-   ```
-   
-6. You can access cmc for any CA at `/cmc/<serial>/` (get serials with `manage list_cas`)
-7. To enable the `/cmc01` endpoint you need to tell it which CA to use by serial: Add the 
-   `CA_DEFAULT_CMC_SERIAL` to `localsettings.yaml` and update your setup. 
+#### Add `compose.yaml`
+
+Get it from [this branch](https://github.com/mathiasertl/django-ca/tree/feature/eu-0001-cmc-support).
+
+#### Add `compose.override.yaml`
+
+TODO: Can we include nginx conf in container?
+
+#### Add `.env` file
+
+**Important:** You need to set
+
+```
+DJANGO_CA_VERSION=cmc
+```
+
+### CMC setup
+
+Add a CMC client certificate:
+
+```
+cat client.pem | docker compose exec -T frontend manage cmc_add_client 
+```
+
+You can access CMC for any CA at `/cmc/<serial>/` (get serials with `manage list_cas`). To enable the 
+`/cmc01` endpoint you need to tell it which CA to use by serial: Add the  `CA_DEFAULT_CMC_SERIAL` to
+`localsettings.yaml` and update your setup. 
+
+Verify setup (a GET request will simply confirm that you reach the right endpoint):
+
+```
+curl http://localhost/cmc01
+```
 
 ## Open questions
 

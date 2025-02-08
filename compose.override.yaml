@@ -1,4 +1,4 @@
 services:
   webserver:
     volumes:
-      - ./nginx/cmc.conf:/etc/nginx/conf.d/include.d/http/cmc.conf
+      - ${PWD}/nginx/cmc.conf:/etc/nginx/conf.d/include.d/http/cmc.conf

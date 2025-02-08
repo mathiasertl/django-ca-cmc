@@ -78,10 +78,10 @@ class CMCView(View):
 
         return ret
 
-    def get(self, request: HttpRequest, serial: str | None) -> HttpResponse:  # noqa: D102
+    def get(self, request: HttpRequest, serial: str | None = None) -> HttpResponse:  # noqa: D102
         return HttpResponse("CMC endpoint here!")
 
-    def post(self, request: HttpRequest, serial: str | None) -> HttpResponse:  # noqa: D102
+    def post(self, request: HttpRequest, serial: str | None = None) -> HttpResponse:  # noqa: D102
         content_type = request.headers.get("Content-type")
         if content_type is None or content_type != CONTENT_TYPE:
             return HttpResponseBadRequest("invalid content type", content_type=CONTENT_TYPE)
