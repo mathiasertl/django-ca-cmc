@@ -1,6 +1,5 @@
 """CMC-related functions."""
 
-import hashlib
 import logging
 import secrets
 from collections.abc import Sequence
@@ -22,6 +21,7 @@ from django_ca.models import Certificate, CertificateAuthority, X509CertMixin
 from python_cmc import cmc
 
 from django_ca_cmc.constants import SUPPORTED_PUBLIC_KEY_TYPES
+from django_ca_cmc.hash import digest
 from django_ca_cmc.models import CMCClient
 from django_ca_cmc.utils import get_signed_digest_algorithm
 
@@ -295,12 +295,10 @@ def create_cmc_response(  # pylint: disable-msg=too-many-locals
     # Add CA bundle and created certificates to the chain.
     model_chain: Sequence[X509CertMixin] = ca.bundle + list(created_certs.values())
 
-    # Get signed digest algorithm
-    # pkcs11_ca has "2.16.840.1.101.3.4.2.1" instead of "sha256".
-    # This should be equivalent.
-    # https://github.com/SUNET/pkcs11_ca/blob/3c31991631d07dad367293ee3ac7b5539d244d24/src/pkcs11_ca_service/cmc.py#L282C80-L282C104
+    # Get digest and signature algorithms
+    digest_algorithm_name = getattr(settings, "CA_CMC_DIGEST_ALGORITHM", "sha256")
     digest_algorithm = asn1crypto.algos.DigestAlgorithm(
-        {"algorithm": asn1crypto.algos.DigestAlgorithmId("sha256")}
+        {"algorithm": asn1crypto.algos.DigestAlgorithmId(digest_algorithm_name)}
     )
     signature_algorithm = get_signed_digest_algorithm(ca.pub.loaded)
 
@@ -332,7 +330,7 @@ def create_cmc_response(  # pylint: disable-msg=too-many-locals
     cms_attributes.append(
         asn1crypto.cms.CMSAttribute(
             {
-                "type": asn1crypto.cms.CMSAttributeType("1.2.840.113549.1.9.3"),
+                "type": asn1crypto.cms.CMSAttributeType("content_type"),
                 "values": asn1crypto.cms.SetOfContentType(
                     [asn1crypto.cms.ContentType("1.3.6.1.5.5.7.12.3")]
                 ),
@@ -340,16 +338,16 @@ def create_cmc_response(  # pylint: disable-msg=too-many-locals
         )
     )
 
-    # The message digest
-    hash_module = hashlib.sha256()
-    hash_module.update(signed_data["encap_content_info"]["content"].contents)
-    digest = hash_module.digest()
+    # Calculate message digest
+    message_digest = digest.hash(
+        signed_data["encap_content_info"]["content"].contents, digest_algorithm
+    )
 
     cms_attributes.append(
         asn1crypto.cms.CMSAttribute(
             {
-                "type": asn1crypto.cms.CMSAttributeType("1.2.840.113549.1.9.4"),
-                "values": asn1crypto.cms.SetOfOctetString([digest]),
+                "type": asn1crypto.cms.CMSAttributeType("message_digest"),
+                "values": asn1crypto.cms.SetOfOctetString([message_digest]),
             }
         )
     )
@@ -357,7 +355,7 @@ def create_cmc_response(  # pylint: disable-msg=too-many-locals
     cms_attributes.append(
         asn1crypto.cms.CMSAttribute(
             {
-                "type": asn1crypto.cms.CMSAttributeType("1.2.840.113549.1.9.5"),
+                "type": asn1crypto.cms.CMSAttributeType("signing_time"),
                 "values": asn1crypto.cms.SetOfTime([asn1crypto.core.UTCTime(datetime.now(UTC))]),
             }
         )
@@ -366,7 +364,7 @@ def create_cmc_response(  # pylint: disable-msg=too-many-locals
     cms_attributes.append(
         asn1crypto.cms.CMSAttribute(
             {
-                "type": asn1crypto.cms.CMSAttributeType("1.2.840.113549.1.9.52"),
+                "type": asn1crypto.cms.CMSAttributeType("cms_algorithm_protection"),
                 "values": asn1crypto.cms.SetOfCMSAlgorithmProtection(
                     [
                         asn1crypto.cms.CMSAlgorithmProtection(
@@ -400,7 +398,7 @@ def create_cmc_response(  # pylint: disable-msg=too-many-locals
     signed_data["certificates"] = asn1crypto.cms.CertificateSet(chain)
 
     cmc_resp = asn1crypto.cms.ContentInfo()
-    cmc_resp["content_type"] = asn1crypto.cms.ContentType("1.2.840.113549.1.7.2")
+    cmc_resp["content_type"] = asn1crypto.cms.ContentType("signed_data")
     cmc_resp["content"] = signed_data
 
     ret: bytes = cmc_resp.dump()

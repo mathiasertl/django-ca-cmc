@@ -59,6 +59,12 @@ Verify setup (a GET request will simply confirm that you reach the right endpoin
 curl http://localhost/cmc01
 ```
 
+## Settings
+
+CA_CMC_DIGEST_ALGORITHM (default: `"sha256"`)
+: Algorithm used for message digest generation. Valid values are any SHA2 or SHA3 algorithms from the
+: [hashlib](https://docs.python.org/3/library/hashlib.html) module (e.g. `"sha3_256"`)
+
 ## Open questions
 
 * `not_after` is hardcoded to three years
@@ -87,4 +93,5 @@ curl http://localhost/cmc01
 
 * [django-ca](https://django-ca.readthedocs.io/en/latest/)
 * [SUNET/pkcs11_ca](https://github.com/SUNET/pkcs11_ca)
-* [RFC 5272](https://www.rfc-editor.org/rfc/rfc5272)
+* [RFC 5272: Certificate Management over CMS (CMC)](https://www.rfc-editor.org/rfc/rfc5272)
+* [RFC 5753: (ECC) Algorithms in Cryptographic Message Syntax (CMS)](https://www.rfc-editor.org/rfc/rfc5753.html)
