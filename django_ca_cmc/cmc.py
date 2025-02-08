@@ -1,6 +1,7 @@
 """CMC-related functions."""
 
 import hashlib
+import logging
 import secrets
 from datetime import UTC, datetime
 
@@ -15,12 +16,14 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec, ed448, ed25519, padding, rsa
 from cryptography.hazmat.primitives.asymmetric.types import CertificateIssuerPublicKeyTypes
 from django.conf import settings
-from django_ca.models import Certificate, CertificateAuthority
+from django_ca.models import Certificate, CertificateAuthority, X509CertMixin
 from python_cmc import cmc
 
 from django_ca_cmc.constants import SUPPORTED_PUBLIC_KEY_TYPES
 from django_ca_cmc.models import CMCClient
 from django_ca_cmc.utils import get_signed_digest_algorithm
+
+log = logging.getLogger(__name__)
 
 
 def _public_key_verify_ecdsa_signature(
@@ -288,10 +291,14 @@ def create_cmc_response(  # pylint: disable-msg=too-many-locals
 ) -> bytes:
     """Create a CMS response containing a CMC package."""
     # Add CA bundle and created certificates to the chain.
+    model_chain: list[X509CertMixin] = ca.bundle
+    model_chain += created_certs.values()
+    log.warning("Certificates in response: %s", model_chain)
+
+    # Convert chain to asn1crypto options
     chain: list[asn1crypto.x509.Certificate] = [
-        asn1crypto.x509.Certificate.load(ca_in_bundle.pub.der) for ca_in_bundle in ca.bundle
+        asn1crypto.x509.Certificate.load(c.pub.der) for c in model_chain
     ]
-    chain += [asn1crypto.x509.Certificate.load(cert.pub.der) for cert in created_certs.values()]
 
     packet = create_cmc_response_packet(controls, created_certs, failed)
 
@@ -386,7 +393,6 @@ def create_cmc_response(  # pylint: disable-msg=too-many-locals
     # Sign the data
     raw_data = signer_info["signed_attrs"].retag(17).dump()
     raw_signautre = ca.sign_data(raw_data)
-    print(0, raw_data)
     signer_info["signature"] = raw_signautre
 
     signed_data["signer_infos"] = asn1crypto.cms.SignerInfos({signer_info})
