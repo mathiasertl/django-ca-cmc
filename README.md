@@ -61,16 +61,20 @@ curl http://localhost/cmc01
 
 ## Settings
 
+CA_CMC_COPY_CSR_EXTENSIONS (default: `[]`)
+: List of extensions that will be copied from the CSR, if present, as dotted string OID. For
+: example:
+:
+: ```python
+: CA_CMC_COPY_CSR_EXTENSIONS = ["2.5.29.32"]
+: ```
+
 CA_CMC_DIGEST_ALGORITHM (default: `"sha256"`)
 : Algorithm used for message digest generation. Valid values are any SHA2 or SHA3 algorithms from the
 : [hashlib](https://docs.python.org/3/library/hashlib.html) module (e.g. `"sha3_256"`)
 
 ## Open questions
 
-* `not_after` is hardcoded to three years
-  ([source](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_pkcs11/csr.py#L159)).
-  Current implementation is default CA_DEFAULT_EXPIRES, which is also the default for the admin
-  interface, command line and REST API (but not ACMEv2).
 * https://github.com/SUNET/pkcs11_ca/blob/main/src/pkcs11_ca_service/cmc.py#L177
   --> failed is True if an exception was raised. Is this maybe the opposite of what you would want?
 * convert_rs_ec_signature() -- are we sure this actually works? it seems to be somewhat
@@ -95,3 +99,4 @@ CA_CMC_DIGEST_ALGORITHM (default: `"sha256"`)
 * [SUNET/pkcs11_ca](https://github.com/SUNET/pkcs11_ca)
 * [RFC 5272: Certificate Management over CMS (CMC)](https://www.rfc-editor.org/rfc/rfc5272)
 * [RFC 5753: (ECC) Algorithms in Cryptographic Message Syntax (CMS)](https://www.rfc-editor.org/rfc/rfc5753.html)
+* [RFC 7773: Authentication Context Certificate Extension](https://www.rfc-editor.org/rfc/rfc7773.html)

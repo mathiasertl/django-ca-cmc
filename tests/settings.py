@@ -1,5 +1,7 @@
 """Django settings for unit tests."""
 
+from cryptography.x509.oid import ExtensionOID
+
 SECRET_KEY = "dummy"
 ROOT_URLCONF = "tests.urls"
 INSTALLED_APPS = [
@@ -21,3 +23,5 @@ CA_KEY_BACKENDS = {
         "BACKEND": "django_ca.key_backends.db.DBBackend",
     },
 }
+
+CA_CMC_COPY_CSR_EXTENSIONS = (ExtensionOID.CERTIFICATE_POLICIES.dotted_string,)

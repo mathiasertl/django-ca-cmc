@@ -20,6 +20,7 @@ from django.conf import settings
 from django_ca.models import Certificate, CertificateAuthority, X509CertMixin
 from python_cmc import cmc
 
+from django_ca_cmc.conf import cmc_settings
 from django_ca_cmc.constants import SUPPORTED_PUBLIC_KEY_TYPES
 from django_ca_cmc.hash import digest
 from django_ca_cmc.models import CMCClient
@@ -144,7 +145,13 @@ def create_cert_from_csr(
 ) -> Certificate:
     """Create cert from a csr."""
     key_backend_options = ca.key_backend.get_use_private_key_options(ca, {})
-    return Certificate.objects.create_cert(ca, key_backend_options, csr, subject=csr.subject)
+
+    extensions = [
+        ext for ext in csr.extensions if ext.oid in cmc_settings.CA_CMC_COPY_CSR_EXTENSIONS
+    ]
+    return Certificate.objects.create_cert(
+        ca, key_backend_options, csr, subject=csr.subject, extensions=extensions
+    )
 
 
 def cmc_revoke(revoke_data: bytes) -> None:
