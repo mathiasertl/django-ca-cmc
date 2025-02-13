@@ -7,7 +7,7 @@ import asn1crypto.x509
 import pytest
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec, ed448, ed25519, rsa
-from cryptography.hazmat.primitives.asymmetric.padding import MGF1, PSS, PKCS1v15
+from cryptography.hazmat.primitives.asymmetric.padding import PKCS1v15
 from django.test import Client
 from django.urls import reverse
 from django_ca.models import Certificate, CertificateAuthority

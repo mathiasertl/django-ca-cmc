@@ -339,9 +339,7 @@ def create_cmc_response(  # pylint: disable-msg=too-many-locals
     )
 
     # Calculate message digest
-    message_digest = digest.hash(
-        signed_data["encap_content_info"]["content"].contents, digest_algorithm
-    )
+    message_digest = digest(signed_data["encap_content_info"]["content"].contents, digest_algorithm)
 
     cms_attributes.append(
         asn1crypto.cms.CMSAttribute(
@@ -387,10 +385,10 @@ def create_cmc_response(  # pylint: disable-msg=too-many-locals
     # Sign the data
     raw_data = signer_info["signed_attrs"].retag(17).dump()
 
-    sign_kwargs = {}
+    padding = None
     if ca.key_type == "RSA":
-        sign_kwargs["padding"] = PKCS1v15()
-    raw_signature = ca.sign_data(raw_data, **sign_kwargs)
+        padding = PKCS1v15()
+    raw_signature = ca.sign_data(raw_data, padding=padding)
 
     signer_info["signature"] = raw_signature
 
