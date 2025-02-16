@@ -1,11 +1,12 @@
-ARG DJANGO_CA_VERSION=latest
+ARG DJANGO_CA_VERSION=2.2.0
 FROM mathiasertl/django-ca:${DJANGO_CA_VERSION} AS build
 
 # Install uv: https://docs.astral.sh/uv/guides/integration/docker/
-COPY --from=ghcr.io/astral-sh/uv /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.6.0 /uv /uvx /bin/
 
 # Activate virtual environment
 ENV PATH="/usr/src/django-ca/.venv/bin:$PATH"
+ENV VIRTUAL_ENV="/usr/src/django-ca/.venv"
 
 # Configure uv
 ENV UV_PYTHON_PREFERENCE=only-system
