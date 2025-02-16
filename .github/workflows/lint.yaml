@@ -24,6 +24,7 @@ jobs:
         uses: astral-sh/setup-uv@v4
         with:
           enable-cache: true
+          version: "0.6.0"
 
       - name: uv sync
         run: uv sync
