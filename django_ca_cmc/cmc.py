@@ -310,6 +310,10 @@ def create_cmc_response(  # pylint: disable-msg=too-many-locals
     digest_algorithm = asn1crypto.algos.DigestAlgorithm(
         {"algorithm": asn1crypto.algos.DigestAlgorithmId(digest_algorithm_name)}
     )
+
+    # NOTE: signature_algorithm is set twice in the response and one should *probably* be based on
+    # the responder authority. However, pkcs11_ca_service also always uses the same value. Further
+    # refinement here would require testing with actual clients.
     signature_algorithm = get_signed_digest_algorithm(ca.pub.loaded)
 
     # Convert chain to asn1crypto options
