@@ -6,7 +6,6 @@ import asn1crypto.cms
 import asn1crypto.x509
 from cryptography import x509
 from cryptography.exceptions import InvalidSignature
-from django.conf import settings
 from django.core.exceptions import BadRequest, ImproperlyConfigured, PermissionDenied
 from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest, HttpResponseForbidden
 from django.utils.decorators import method_decorator
@@ -21,6 +20,7 @@ from django_ca_cmc.cmc import (
     create_cmc_response,
     create_csr_from_crmf,
 )
+from django_ca_cmc.conf import cmc_settings
 
 log = logging.getLogger(__name__)
 CONTENT_TYPE = "application/pkcs7-mime"
@@ -31,8 +31,11 @@ class CMCView(View):
     """View handling CMC requests."""
 
     serial: str | None = None
+    responder_serial: str | None = None
 
-    def handle_request(self, ca: CertificateAuthority, data: bytes) -> bytes:
+    def handle_request(
+        self, ca: CertificateAuthority, responder_authority: CertificateAuthority, data: bytes
+    ) -> bytes:
         """Handle and extract CMS CMC request."""
         created_certs: dict[int, asn1crypto.x509.Certificate] = {}
 
@@ -75,32 +78,54 @@ class CMCView(View):
 
                 created_certs[req_id] = create_cert_from_csr(ca, csr)
 
-            ret = create_cmc_response(ca, cmc_req["controlSequence"], created_certs, failed=False)
+            ret = create_cmc_response(
+                ca, responder_authority, cmc_req["controlSequence"], created_certs, failed=False
+            )
         except (ValueError, TypeError):
-            ret = create_cmc_response(ca, cmc_req["controlSequence"], created_certs, failed=True)
+            ret = create_cmc_response(
+                ca, responder_authority, cmc_req["controlSequence"], created_certs, failed=True
+            )
 
         return ret
 
     def get(self, request: HttpRequest, serial: str | None = None) -> HttpResponse:
         return HttpResponse("CMC endpoint here!")
 
+    def get_certificate_authority(self, serial: str | None) -> CertificateAuthority:
+        if serial is None:
+            serial = self.serial
+        if serial is None:
+            serial = cmc_settings.CA_CMC_DEFAULT_SERIAL
+        if serial is None:
+            # If it's still None, we cannot determine the serial.
+            raise ImproperlyConfigured("No serial configured for this view.")
+
+        return CertificateAuthority.objects.usable().get(serial=serial)
+
+    def get_responder_authority(self, ca: CertificateAuthority) -> CertificateAuthority:
+        serial = self.responder_serial
+        if serial is None:
+            serial = cmc_settings.CA_CMC_DEFAULT_RESPONDER_SERIAL
+        if serial is None:
+            serial = ca.serial
+
+        if serial == ca.serial:
+            return ca
+        else:
+            return CertificateAuthority.objects.usable().get(serial=serial)
+
     def post(self, request: HttpRequest, serial: str | None = None) -> HttpResponse:
         content_type = request.headers.get("Content-type")
         if content_type is None or content_type != CONTENT_TYPE:
             return HttpResponseBadRequest("invalid content type", content_type=CONTENT_TYPE)
 
-        if serial is None:
-            serial = self.serial
-        if serial is None:
-            serial = getattr(settings, "CA_DEFAULT_CMC_SERIAL", None)
-        if serial is None:
-            # If it's still None, we cannot determine the serial.
-            raise ImproperlyConfigured("No serial configured for this view.")
-
-        certificate_authority = CertificateAuthority.objects.usable().get(serial=serial)
+        certificate_authority = self.get_certificate_authority(serial)
+        responder_authority = self.get_responder_authority(certificate_authority)
 
         try:
-            data_content = self.handle_request(certificate_authority, request.body)
+            data_content = self.handle_request(
+                certificate_authority, responder_authority, request.body
+            )
         except InvalidSignature:
             return HttpResponseForbidden("invalid signature", content_type=CONTENT_TYPE)
         except Exception as ex:

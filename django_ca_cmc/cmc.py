@@ -294,15 +294,18 @@ def pem_cert_to_key_hash(certificate: x509.Certificate) -> bytes:
 
 def create_cmc_response(  # pylint: disable-msg=too-many-locals
     ca: CertificateAuthority,
+    responder_authority: CertificateAuthority,
     controls: cmc.Controls,
     created_certs: dict[int, Certificate],
     failed: bool,
 ) -> bytes:
     """Create a CMS response containing a CMC package."""
+    # https://github.com/SUNET/pkcs11_ca/blob/main/src/pkcs11_ca_service/cmc.py#L207
     # Add CA bundle and created certificates to the chain.
     model_chain: Sequence[X509CertMixin] = ca.bundle + list(created_certs.values())
 
     # Get digest and signature algorithms
+    # NOTE: pkcs11_ca_service *always* uses sha256 for digest algorithm.
     digest_algorithm_name = getattr(settings, "CA_CMC_DIGEST_ALGORITHM", "sha256")
     digest_algorithm = asn1crypto.algos.DigestAlgorithm(
         {"algorithm": asn1crypto.algos.DigestAlgorithmId(digest_algorithm_name)}
@@ -392,10 +395,10 @@ def create_cmc_response(  # pylint: disable-msg=too-many-locals
     # Sign the data
     raw_data = signer_info["signed_attrs"].retag(17).dump()
 
-    padding = None
-    if ca.key_type == "RSA":
-        padding = PKCS1v15()
-    raw_signature = ca.sign_data(raw_data, padding=padding)
+    response_padding = None
+    if responder_authority.key_type == "RSA":
+        response_padding = PKCS1v15()
+    raw_signature = responder_authority.sign_data(raw_data, padding=response_padding)
 
     signer_info["signature"] = raw_signature
 

@@ -4,6 +4,7 @@ from typing import Annotated, Any
 
 from cryptography import x509
 from django_ca.conf import SettingsProxyBase
+from django_ca.pydantic.type_aliases import Serial
 from pydantic import BaseModel, BeforeValidator, ConfigDict
 
 
@@ -23,6 +24,8 @@ class CMCModelSettings(BaseModel):
     CA_CMC_COPY_CSR_EXTENSIONS: tuple[
         Annotated[x509.ObjectIdentifier, BeforeValidator(oid_validator)], ...
     ] = ()
+    CA_CMC_DEFAULT_SERIAL: Serial | None = None
+    CA_CMC_DEFAULT_RESPONDER_SERIAL: Serial | None = None
 
 
 class CMCSettingsProxy(SettingsProxyBase[CMCModelSettings]):
