@@ -61,17 +61,18 @@ curl http://localhost/cmc01
 
 ## Settings
 
-CA_CMC_COPY_CSR_EXTENSIONS (default: `[]`)
-: List of extensions that will be copied from the CSR, if present, as dotted string OID. For
-: example:
-:
-: ```python
-: CA_CMC_COPY_CSR_EXTENSIONS = ["2.5.29.32"]
-: ```
-
-CA_CMC_DIGEST_ALGORITHM (default: `"sha256"`)
-: Algorithm used for message digest generation. Valid values are any SHA2 or SHA3 algorithms from the
-: [hashlib](https://docs.python.org/3/library/hashlib.html) module (e.g. `"sha3_256"`)
+* `CA_CMC_COPY_CSR_EXTENSIONS` (default: `[]`)
+  
+  List of extensions that will be copied from the CSR, if present, as dotted string OID. For
+  example:
+ 
+  ```python
+  CA_CMC_COPY_CSR_EXTENSIONS = ["2.5.29.32"]
+  ```
+* `CA_CMC_DIGEST_ALGORITHM` (default: `"sha256"`)
+  
+  Algorithm used for message digest generation. Valid values are any SHA2 or SHA3 algorithms from the
+  [hashlib](https://docs.python.org/3/library/hashlib.html) module (e.g. `"sha3_256"`)
 
 ## Open questions
 
