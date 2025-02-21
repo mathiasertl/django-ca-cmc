@@ -46,3 +46,5 @@ class Command(BaseCommand):
         client = CMCClient(comment=comment)
         client.update_certificate(loaded_certificate)
         client.save()
+
+        self.stdout.write(f"Client with serial {client.serial} added successfully.")
