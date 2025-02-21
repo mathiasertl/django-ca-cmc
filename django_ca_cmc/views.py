@@ -46,7 +46,7 @@ class CMCView(View):
         # Ensure valid signature for the request
         if len(content["signer_infos"]) == 0 or len(content["certificates"]) == 0:
             raise PermissionDenied("Invalid signature or certificate for the signature")
-        check_request_signature(content["certificates"], content["signer_infos"])
+        client = check_request_signature(content["certificates"], content["signer_infos"])
 
         raw_cmc_request = content["encap_content_info"]["content"].parsed.dump()
         cmc_req = cmc.PKIData.load(raw_cmc_request)
@@ -68,15 +68,13 @@ class CMCView(View):
                 if isinstance(value, cmc.CertReqMsg):  # CRMF
                     req_id = int(value["certReq"]["certReqId"].native)
                     csr = create_csr_from_crmf(value["certReq"]["certTemplate"])
-                    created_certs[req_id] = create_cert_from_csr(ca, csr)
-
                 elif isinstance(value, cmc.TaggedCertificationRequest):  # CSR
                     req_id = int(value["bodyPartID"].native)
                     csr = x509.load_der_x509_csr(value["certificationRequest"].dump())
                 else:  # pragma: no cover  # must not happen, types asserted outside of loop
                     raise ValueError("Unsupported message type")
 
-                created_certs[req_id] = create_cert_from_csr(ca, csr)
+                created_certs[req_id] = create_cert_from_csr(ca, client, csr)
 
             ret = create_cmc_response(
                 ca, responder_authority, cmc_req["controlSequence"], created_certs, failed=False

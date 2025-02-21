@@ -99,13 +99,20 @@ urlpatterns = [
 
 ## Settings
 
-* `CA_CMC_COPY_CSR_EXTENSIONS` (default: `[]`)
+* `CA_CMC_COPY_CSR_EXTENSIONS_BLACKLIST:` (default: `[...]`)
   
-  List of extensions that will be copied from the CSR, if present, as dotted string OID. For
-  example:
+  List of extensions that will never be copied from a CSR. By default, includes OIDs for the 
+  authorityInformationAccess, authorityKeyIdentifier, basicConstraints, cRLDistributionPoints,
+  and subjectKeyIdentifier extensions.
+
+  See the 
+  [docs](https://cryptography.io/en/latest/x509/reference/#cryptography.x509.oid.ExtensionOID)
+  for a list of common ExtensionOIDs. 
  
+  Example value:
+  
   ```python
-  CA_CMC_COPY_CSR_EXTENSIONS = ["2.5.29.32"]
+  CA_CMC_COPY_CSR_EXTENSIONS_BLACKLIST = ["2.5.29.32"]
   ```
 * `CA_CMC_DEFAULT_RESPONDER_SERIAL`
   
@@ -118,6 +125,11 @@ urlpatterns = [
   
   Algorithm used for message digest generation. Valid values are any SHA2 or SHA3 algorithms from the
   [hashlib](https://docs.python.org/3/library/hashlib.html) module (e.g. `"sha3_256"`).
+
+* `CA_CMC_COPY_UNRECOGNIZED_CSR_EXTENSIONS` (default: ``False``)
+
+   Set to ``True`` if you want clients to be able to send extensions not recognized by cryptography and have
+   them added to the certificate.
 
 ## Open questions
 
