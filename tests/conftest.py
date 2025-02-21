@@ -20,6 +20,9 @@ from django_ca.models import CertificateAuthority
 from django_ca.typehints import AllowedHashTypes
 
 from django_ca_cmc.models import CMCClient
+from tests.utils import load_file
+
+CMC_CLIENT_ONE_PEM = load_file("cmc_client_1.pem")
 
 RSA_KEY_SIZES = (2048, 4096)
 RSA_ALGORITHMS = (hashes.SHA224(), hashes.SHA256(), hashes.SHA384(), hashes.SHA512())
@@ -247,15 +250,7 @@ def ca(request: "SubRequest") -> CertificateAuthority:
 def pre_created_client(ca: CertificateAuthority) -> CMCClient:
     """Create CMCClient with certificate for pre-created requests."""
     client = CMCClient()
-    cert = x509.load_pem_x509_certificate(b"""-----BEGIN CERTIFICATE-----
-MIIBJDCByqADAgECAgRhfDUqMAoGCCqGSM49BAMCMBoxGDAWBgNVBAMMD1Rlc3Qg
-Q01DIENsaWVudDAeFw0yMTEwMjkxNzUzNDZaFw0yNjEwMjkxNzUzNDZaMBoxGDAW
-BgNVBAMMD1Rlc3QgQ01DIENsaWVudDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IA
-BJuWGZFY9U8KD8RsIALCJYElSH4GgI6/nY6L5RTPGdYl5xzF2yYKRlFQBNVbB359
-HBmaVuhuKbTkLiKsTTy0qRMwCgYIKoZIzj0EAwIDSQAwRgIhAIitbkx60TsqHZbH
-k9ko+ojFQ3XWJ0zTaKGQcfglrTU/AiEAjJs3LuO1F6GxDjgpLVVp+u750rVCwsUJ
-zIqw8k4ytIY=
------END CERTIFICATE-----""")
+    cert = x509.load_pem_x509_certificate(CMC_CLIENT_ONE_PEM)
 
     client.update_certificate(cert)
     client.save()
