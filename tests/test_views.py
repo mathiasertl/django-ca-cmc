@@ -5,14 +5,17 @@ from http import HTTPStatus
 import asn1crypto.cms
 import asn1crypto.x509
 import pytest
+from cryptography import x509
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec, ed448, ed25519, rsa
 from cryptography.hazmat.primitives.asymmetric.padding import PKCS1v15
+from cryptography.x509.oid import CertificatePoliciesOID, ExtensionOID, NameOID
 from django.test import Client
 from django.urls import reverse
 from django_ca.models import Certificate, CertificateAuthority
 
-from tests.utils import load_file
+from django_ca_cmc.models import CMCClient
+from tests.utils import create_cmc_request, create_tagged_csr_message, load_file
 
 
 @pytest.mark.usefixtures("pre_created_client")
@@ -79,6 +82,72 @@ def test_pre_created_crmf(client: Client, rsa_2048_sha256_ca: CertificateAuthori
     url_path = reverse("django_ca_cmc:cmc", kwargs={"serial": rsa_2048_sha256_ca.serial})
     response = client.post(url_path, data=decoded, content_type="application/pkcs7-mime")
     assert response.status_code == HTTPStatus.OK, response.content
+
+
+def test_with_copied_extensions(
+    cmc_client_private_key: ec.EllipticCurvePrivateKey,
+    cmc_client: CMCClient,
+    client: Client,
+    rsa_private_key_2048: rsa.RSAPrivateKey,
+    rsa_2048_sha256_ca: CertificateAuthority,
+) -> None:
+    """Test copying extensions."""
+    csr_builder = (
+        x509.CertificateSigningRequestBuilder()
+        .subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "example.com")]))
+        .add_extension(
+            x509.SubjectAlternativeName([x509.DNSName("example.com")]),
+            critical=False,
+        )
+        .add_extension(
+            x509.CertificatePolicies(
+                [x509.PolicyInformation(CertificatePoliciesOID.ANY_POLICY, None)]
+            ),
+            critical=False,
+        )
+        .add_extension(
+            x509.UnrecognizedExtension(oid=x509.ObjectIdentifier("1.2.3"), value=b"123"),
+            critical=False,
+        )
+        # This extension is blacklisted and will not be copied.
+        .add_extension(x509.BasicConstraints(ca=True, path_length=0), critical=True)
+    )
+    csr = csr_builder.sign(rsa_private_key_2048, hashes.SHA256())
+
+    cmc_client.copy_extensions = True
+    cmc_client.save()
+
+    tcr = create_tagged_csr_message(csr)
+    decoded = create_cmc_request(cmc_client_private_key, cmc_client.certificate.loaded, tcr)
+
+    url_path = reverse("django_ca_cmc:cmc", kwargs={"serial": rsa_2048_sha256_ca.serial})
+    response = client.post(url_path, data=decoded, content_type="application/pkcs7-mime")
+    assert response.status_code == HTTPStatus.OK, response.content
+
+    cert: Certificate = Certificate.objects.get()
+
+    # CertificatePolicies is copied
+    assert cert.extensions[ExtensionOID.CERTIFICATE_POLICIES] == x509.Extension(
+        oid=ExtensionOID.CERTIFICATE_POLICIES,
+        critical=False,
+        value=x509.CertificatePolicies(
+            [x509.PolicyInformation(CertificatePoliciesOID.ANY_POLICY, None)]
+        ),
+    )
+
+    # UnrecognizedExtension is also copied
+    assert cert.extensions[x509.ObjectIdentifier("1.2.3")] == x509.Extension(
+        critical=False,
+        oid=x509.ObjectIdentifier("1.2.3"),
+        value=x509.UnrecognizedExtension(oid=x509.ObjectIdentifier("1.2.3"), value=b"123"),
+    )
+
+    # BasicConstraints is in the blacklist, so it's not copied
+    assert cert.extensions[ExtensionOID.BASIC_CONSTRAINTS] == x509.Extension(
+        critical=True,
+        oid=ExtensionOID.BASIC_CONSTRAINTS,
+        value=x509.BasicConstraints(ca=False, path_length=None),
+    )
 
 
 @pytest.mark.usefixtures("pre_created_client")

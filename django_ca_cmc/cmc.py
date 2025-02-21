@@ -74,7 +74,7 @@ def verify_signature(
 
 def check_request_signature(
     request_signers: cms.CertificateSet, signer_infos: cms.SignerInfos
-) -> None:
+) -> CMCClient:
     """Check a CMC request signature."""
     now = datetime.now(tz=UTC)
     if settings.USE_TZ is False:
@@ -98,7 +98,7 @@ def check_request_signature(
                     signed_data = signer_info["signed_attrs"].retag(17).dump()
                     try:
                         verify_signature(public_key, signature, signed_data)
-                        return
+                        return client
                     except (InvalidSignature, ValueError, TypeError):
                         pass
 
@@ -141,16 +141,26 @@ def create_csr_from_crmf(
 
 
 def create_cert_from_csr(
-    ca: CertificateAuthority, csr: x509.CertificateSigningRequest
+    ca: CertificateAuthority, client: CMCClient, csr: x509.CertificateSigningRequest
 ) -> Certificate:
     """Create cert from a csr."""
     key_backend_options = ca.key_backend.get_use_private_key_options(ca, {})
 
-    extensions = [
-        ext for ext in csr.extensions if ext.oid in cmc_settings.CA_CMC_COPY_CSR_EXTENSIONS
-    ]
+    extensions = []
+    if client.copy_extensions is True:
+        extensions = [
+            ext
+            for ext in csr.extensions
+            if ext.oid not in cmc_settings.CA_CMC_COPY_CSR_EXTENSIONS_BLACKLIST
+        ]
+
     return Certificate.objects.create_cert(
-        ca, key_backend_options, csr, subject=csr.subject, extensions=extensions
+        ca,
+        key_backend_options,
+        csr,
+        subject=csr.subject,
+        extensions=extensions,
+        allow_unrecognized_extensions=cmc_settings.CA_CMC_COPY_UNRECOGNIZED_CSR_EXTENSIONS,
     )
 
 
@@ -292,7 +302,7 @@ def pem_cert_to_key_hash(certificate: x509.Certificate) -> bytes:
     return ext.value.digest
 
 
-def create_cmc_response(  # pylint: disable-msg=too-many-locals
+def create_cmc_response(
     ca: CertificateAuthority,
     responder_authority: CertificateAuthority,
     controls: cmc.Controls,
