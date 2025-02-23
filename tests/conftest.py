@@ -33,6 +33,7 @@ def _sign(
     private_key: CertificateIssuerPrivateKeyTypes,
     common_name: str,
     algorithm: AllowedHashTypes | None = None,
+    ca: bool = True,
 ) -> x509.Certificate:
     subject = issuer = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, common_name)])
 
@@ -50,7 +51,7 @@ def _sign(
         .not_valid_after(now + timedelta(days=10))
         # Add necessary extensions:
         .add_extension(x509.AuthorityKeyIdentifier.from_issuer_public_key(public_key), False)
-        .add_extension(x509.BasicConstraints(ca=True, path_length=0), True)
+        .add_extension(x509.BasicConstraints(ca=True, path_length=None), True)
         .add_extension(x509.SubjectKeyIdentifier.from_public_key(public_key), False)
     )
 
@@ -253,5 +254,29 @@ def pre_created_client(ca: CertificateAuthority) -> CMCClient:
     cert = x509.load_pem_x509_certificate(CMC_CLIENT_ONE_PEM)
 
     client.update_certificate(cert)
+    client.save()
+    return client
+
+
+@pytest.fixture(scope="session")
+def cmc_client_private_key() -> ec.EllipticCurvePrivateKey:
+    """CMC client private key generated for this session."""
+    return ec.generate_private_key(ec.SECP256R1())
+
+
+@pytest.fixture(scope="session")
+def cmc_client_public_key(
+    cmc_client_private_key: ec.EllipticCurvePrivateKey,
+) -> x509.Certificate:
+    """CMC client public key generated for this session."""
+    return _sign(cmc_client_private_key, "cmc-client.example.com", hashes.SHA256(), ca=False)
+
+
+@pytest.fixture
+def cmc_client(request: "SubRequest", cmc_client_public_key: x509.Certificate) -> CMCClient:
+    """CMCClient instance with public key generated for this session."""
+    request.getfixturevalue("db")
+    client = CMCClient()
+    client.update_certificate(cmc_client_public_key)
     client.save()
     return client

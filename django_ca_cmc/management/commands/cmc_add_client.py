@@ -30,9 +30,16 @@ class Command(BaseCommand):
         parser.add_argument(
             "-c", "--comment", default="", help="Optional information about this certificate."
         )
+        parser.add_argument(
+            "--copy-extensions",
+            default=False,
+            action="store_true",
+            help="Copy (almost) all extensions from the CSR if the request is signed by "
+            "this certificate.",
+        )
         parser.add_argument("certificate", help="Path to the certificate (or - for stdin).")
 
-    def handle(self, certificate: str, comment: str, **options: Any) -> None:
+    def handle(self, certificate: str, comment: str, copy_extensions: bool, **options: Any) -> None:
         """Handle method."""
         raw_certificate = self.read_file(certificate)
         try:
@@ -43,7 +50,7 @@ class Command(BaseCommand):
             except ValueError as ex:
                 raise CommandError("Cannot parse certificate.") from ex
 
-        client = CMCClient(comment=comment)
+        client = CMCClient(comment=comment, copy_extensions=copy_extensions)
         client.update_certificate(loaded_certificate)
         client.save()
 

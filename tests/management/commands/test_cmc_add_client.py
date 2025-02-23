@@ -45,6 +45,25 @@ def test_with_path_with_pem() -> None:
     assert client.not_after == datetime(2026, 10, 29, 17, 53, 46, tzinfo=UTC)
     assert client.not_before == datetime(2021, 10, 29, 17, 53, 46, tzinfo=UTC)
     assert client.comment == ""
+    assert client.copy_extensions is False
+
+
+@pytest.mark.django_db
+def test_with_parameters() -> None:
+    """Test passing a path to a PEM."""
+    stdout = StringIO()
+    call_command(
+        "cmc_add_client", cmc_client_1_path, comment="foo", copy_extensions=True, stdout=stdout
+    )
+    assert stdout.getvalue() == f"Client with serial {serial} added successfully.\n"
+
+    client = CMCClient.objects.get()
+    assert client.certificate.pem.strip() == CMC_CLIENT_ONE_PEM.decode()
+    assert client.serial == serial
+    assert client.not_after == datetime(2026, 10, 29, 17, 53, 46, tzinfo=UTC)
+    assert client.not_before == datetime(2021, 10, 29, 17, 53, 46, tzinfo=UTC)
+    assert client.comment == "foo"
+    assert client.copy_extensions is True
 
 
 @pytest.mark.django_db
@@ -61,6 +80,7 @@ def test_with_stdin_with_pem() -> None:
     assert client.not_after == datetime(2026, 10, 29, 17, 53, 46, tzinfo=UTC)
     assert client.not_before == datetime(2021, 10, 29, 17, 53, 46, tzinfo=UTC)
     assert client.comment == ""
+    assert client.copy_extensions is False
 
 
 @pytest.mark.django_db

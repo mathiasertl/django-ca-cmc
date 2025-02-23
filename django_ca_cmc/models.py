@@ -23,6 +23,12 @@ class CMCClient(models.Model):
     serial = models.CharField(max_length=64, unique=True)
 
     comment = models.TextField(default="")
+    copy_extensions = models.BooleanField(
+        default=False,
+        help_text=_(
+            "Copy (almost) all extensions from the CSR if a request is signed by this certificate."
+        ),
+    )
 
     class Meta:
         verbose_name = _("CMC client")
