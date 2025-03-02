@@ -13,6 +13,8 @@ jobs:
 
       - name: Acquire sources
         uses: actions/checkout@v4.1.1
+        with:
+            fetch-depth: 0
 
       - name: Setup Python
         uses: actions/setup-python@v5.0.0
@@ -24,7 +26,7 @@ jobs:
         uses: astral-sh/setup-uv@v4
         with:
           enable-cache: true
-          version: "0.6.0"
+          version: "0.6.3"
 
       - name: uv sync
         run: uv sync

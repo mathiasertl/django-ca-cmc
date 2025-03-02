@@ -1,7 +1,7 @@
 [build-system]
 # Minimum requirements for the build system to execute (PEP-518):
 # >= 68.1: "Promote pyproject.toml’s [tool.setuptools] out of beta." in the ChangeLog
-requires = ["setuptools>=68.1", "wheel"]
+requires = ["setuptools>=68.1", "wheel", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -9,7 +9,7 @@ name = "django-ca-cmc"
 authors = [
     {name = "Mathias Ertl", email = "mati@er.tl"},
 ]
-version = "0.1.0"
+dynamic = ["version"]
 description = "django-ca plugin for Certificate Management over CMS (CMC)"
 classifiers = [
     "Development Status :: 5 - Production/Stable",
@@ -132,3 +132,5 @@ ignore = [
 
 [tool.setuptools.packages.find]
 include = ["django_ca_cmc*"]
+
+[tool.setuptools_scm]

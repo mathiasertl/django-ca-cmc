@@ -1,8 +1,16 @@
-ARG DJANGO_CA_VERSION=2.2.0
+ARG DJANGO_CA_VERSION=2.2.1
 FROM mathiasertl/django-ca:${DJANGO_CA_VERSION} AS build
 
+# Install required dependencies
+USER root
+RUN --mount=target=/var/lib/apt/lists,type=cache,sharing=locked \
+    --mount=target=/var/cache/apt,type=cache,sharing=locked \
+    rm -f /etc/apt/apt.conf.d/docker-clean &&  \
+    apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y git
+
 # Install uv: https://docs.astral.sh/uv/guides/integration/docker/
-COPY --from=ghcr.io/astral-sh/uv:0.6.0 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.6.3 /uv /uvx /bin/
 
 # Activate virtual environment
 ENV PATH="/usr/src/django-ca/.venv/bin:$PATH"
@@ -15,8 +23,8 @@ ENV UV_LINK_MODE=copy
 WORKDIR /install
 ADD pyproject.toml ./
 ADD django_ca_cmc/ ./django_ca_cmc/
+ADD .git/ .git/
 
-USER root
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv pip install .
 
