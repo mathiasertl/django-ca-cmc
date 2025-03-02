@@ -13,6 +13,7 @@ from cryptography.x509.oid import CertificatePoliciesOID, ExtensionOID, NameOID
 from django.test import Client
 from django.urls import reverse
 from django_ca.models import Certificate, CertificateAuthority
+from pytest_django.fixtures import SettingsWrapper
 
 from django_ca_cmc.models import CMCClient
 from tests.utils import create_cmc_request, create_tagged_csr_message, load_file
@@ -85,6 +86,7 @@ def test_pre_created_crmf(client: Client, rsa_2048_sha256_ca: CertificateAuthori
 
 
 def test_with_copied_extensions(
+    settings: SettingsWrapper,
     cmc_client_private_key: ec.EllipticCurvePrivateKey,
     cmc_client: CMCClient,
     client: Client,
@@ -116,6 +118,7 @@ def test_with_copied_extensions(
 
     cmc_client.copy_extensions = True
     cmc_client.save()
+    settings.CA_CMC_COPY_UNRECOGNIZED_CSR_EXTENSIONS = True
 
     tcr = create_tagged_csr_message(csr)
     decoded = create_cmc_request(cmc_client_private_key, cmc_client.certificate.loaded, tcr)
