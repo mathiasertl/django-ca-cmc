@@ -6,7 +6,7 @@ import asn1crypto.algos
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec, ed448, ed25519, rsa
-from django_ca.typehints import AllowedHashTypes
+from django_ca.typehints import SignatureHashAlgorithm
 
 
 def _get_ec_signed_digest_algorithm(
@@ -42,7 +42,7 @@ def get_signed_digest_algorithm(
     elif isinstance(public_key, ec.EllipticCurvePublicKey):
         algo["algorithm"] = _get_ec_signed_digest_algorithm(public_key.curve)
     elif isinstance(public_key, rsa.RSAPublicKey):
-        algorithm = cast(AllowedHashTypes, certificate.signature_hash_algorithm)
+        algorithm = cast(SignatureHashAlgorithm, certificate.signature_hash_algorithm)
         if isinstance(algorithm, hashes.SHA224):
             algo["algorithm"] = asn1crypto.algos.SignedDigestAlgorithmId("sha224_rsa")
         elif isinstance(algorithm, hashes.SHA256):
