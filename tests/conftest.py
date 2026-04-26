@@ -17,7 +17,7 @@ from cryptography.hazmat.primitives.asymmetric.types import CertificateIssuerPri
 from cryptography.x509.oid import NameOID
 from django_ca.key_backends.db.models import DBStorePrivateKeyOptions
 from django_ca.models import CertificateAuthority
-from django_ca.typehints import AllowedHashTypes
+from django_ca.typehints import SignatureHashAlgorithm
 
 from django_ca_cmc.models import CMCClient
 from tests.utils import load_file
@@ -32,7 +32,7 @@ ELLIPTIC_CURVES = [ec.SECP521R1(), ec.SECP256R1(), ec.SECP384R1(), ec.SECT571K1(
 def _sign(
     private_key: CertificateIssuerPrivateKeyTypes,
     common_name: str,
-    algorithm: AllowedHashTypes | None = None,
+    algorithm: SignatureHashAlgorithm | None = None,
     ca: bool = True,
 ) -> x509.Certificate:
     subject = issuer = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, common_name)])
@@ -106,7 +106,7 @@ def generate_rsa_private_key_fixture(key_size: int) -> Callable[[], rsa.RSAPriva
 
 
 def generate_rsa_certificate_fixture(
-    key_size: int, algorithm: AllowedHashTypes
+    key_size: int, algorithm: SignatureHashAlgorithm
 ) -> Callable[[SubRequest], x509.Certificate]:
     """Function to generate a fixture for an RSA certificate."""
 
